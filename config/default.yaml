@@ -22,7 +22,10 @@ delta:
     unchanged_text_sim: 0.97
     unchanged_centroid_frac: 0.01
     moved_text_sim: 0.90
+    missed_modify_conf: 0.5       # add/remove match_conf below this -> flagged "possible missed-modify"
+  change_set_radius: 0.05         # centroid distance (fraction of page diagonal) for change-set clustering
   notes:
+    row_tol: 0.01                 # normalized page-height fraction: words within this y0 distance cluster into one note line
     semantic_low: null            # calibrated on train split (§05/§10) — not hardcoded
     semantic_high: null
 
