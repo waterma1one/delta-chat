@@ -1,0 +1,15 @@
+{
+  "content_hash": "sha256:82a320ae709e46749baf3f40c4b9a450c7b449252f2708dc90c885c4e1482bce",
+  "dataset_version": "v1",
+  "split": {
+    "test": [
+      "pair_02_hard",
+      "pair_03_scanned",
+      "pair_04_multisheet",
+      "pair_05_dxf"
+    ],
+    "train": [
+      "pair_01_native"
+    ]
+  }
+}

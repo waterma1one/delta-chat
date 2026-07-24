@@ -1,0 +1,61 @@
+{
+  "edits": [
+    {
+      "bbox": [
+        0.083333,
+        0.894737,
+        0.222473,
+        0.928377
+      ],
+      "change_id": "GOLD-0401",
+      "description": "MTEXT tag 902 -> 903",
+      "format": "dwg",
+      "hard_slice": false,
+      "item_type": "text",
+      "new": "26-KA-903",
+      "old": "26-KA-902",
+      "page": 0,
+      "pair_id": "pair_05_dxf",
+      "sheet": null,
+      "type": "modified"
+    },
+    {
+      "bbox": [
+        0.0,
+        0.368421,
+        1.0,
+        0.368421
+      ],
+      "change_id": "GOLD-0402",
+      "description": "Horizontal line added",
+      "format": "dwg",
+      "hard_slice": false,
+      "item_type": "symbol",
+      "new": "LINE",
+      "old": null,
+      "page": 0,
+      "pair_id": "pair_05_dxf",
+      "sheet": null,
+      "type": "added"
+    },
+    {
+      "bbox": [
+        0.708333,
+        0.0,
+        0.791667,
+        0.105263
+      ],
+      "change_id": "GOLD-0403",
+      "description": "Block INSERT 'SYM' moved (10,90) -> (90,90)",
+      "format": "dwg",
+      "hard_slice": false,
+      "item_type": "symbol",
+      "new": "SYM",
+      "old": "SYM",
+      "page": 0,
+      "pair_id": "pair_05_dxf",
+      "sheet": null,
+      "type": "moved"
+    }
+  ]
+}

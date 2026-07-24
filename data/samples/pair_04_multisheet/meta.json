@@ -1,0 +1,23 @@
+{
+  "edits": [
+    {
+      "bbox": [
+        0.134454,
+        0.106888,
+        0.216639,
+        0.118765
+      ],
+      "change_id": "GOLD-0301",
+      "description": "Tag on sheet 3 changed 303 -> 404",
+      "format": "pdf_native",
+      "hard_slice": false,
+      "item_type": "tag",
+      "new": "26-CC-404",
+      "old": "26-CC-303",
+      "page": 2,
+      "pair_id": "pair_04_multisheet",
+      "sheet": "3",
+      "type": "modified"
+    }
+  ]
+}

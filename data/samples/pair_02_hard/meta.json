@@ -1,0 +1,61 @@
+{
+  "edits": [
+    {
+      "bbox": [
+        0.672269,
+        0.344418,
+        0.761008,
+        0.356295
+      ],
+      "change_id": "GOLD-0101",
+      "description": "Duplicate FV-9040 (2nd instance) moved down",
+      "format": "pdf_native",
+      "hard_slice": true,
+      "item_type": "tag",
+      "new": "26-FV-9040",
+      "old": "26-FV-9040",
+      "page": 0,
+      "pair_id": "pair_02_hard",
+      "sheet": null,
+      "type": "moved"
+    },
+    {
+      "bbox": [
+        0.134454,
+        0.463183,
+        0.346454,
+        0.475059
+      ],
+      "change_id": "GOLD-0102",
+      "description": "Note 1 split (part 1)",
+      "format": "pdf_native",
+      "hard_slice": true,
+      "item_type": "note",
+      "new": "1. PURGE BEFORE START",
+      "old": "1. PURGE BEFORE START AND VENT",
+      "page": 0,
+      "pair_id": "pair_02_hard",
+      "sheet": null,
+      "type": "modified"
+    },
+    {
+      "bbox": [
+        0.134454,
+        0.486936,
+        0.388471,
+        0.498812
+      ],
+      "change_id": "GOLD-0103",
+      "description": "Note 1 split (new part 2)",
+      "format": "pdf_native",
+      "hard_slice": true,
+      "item_type": "note",
+      "new": "2. AND VENT TO ATMOSPHERE",
+      "old": null,
+      "page": 0,
+      "pair_id": "pair_02_hard",
+      "sheet": null,
+      "type": "added"
+    }
+  ]
+}

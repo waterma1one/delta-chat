@@ -1,0 +1,99 @@
+{
+  "edits": [
+    {
+      "bbox": [
+        0.134454,
+        0.106888,
+        0.223193,
+        0.118765
+      ],
+      "change_id": "GOLD-0001",
+      "description": "Instrument tag 9038 -> 9040",
+      "format": "pdf_native",
+      "hard_slice": false,
+      "item_type": "tag",
+      "new": "26-FV-9040",
+      "old": "26-FV-9038",
+      "page": 0,
+      "pair_id": "pair_01_native",
+      "sheet": null,
+      "type": "modified"
+    },
+    {
+      "bbox": [
+        0.504202,
+        0.106888,
+        0.560235,
+        0.118765
+      ],
+      "change_id": "GOLD-0002",
+      "description": "Dimension 150mm -> 200mm",
+      "format": "pdf_native",
+      "hard_slice": false,
+      "item_type": "dimension",
+      "new": "200mm",
+      "old": "150mm",
+      "page": 0,
+      "pair_id": "pair_01_native",
+      "sheet": null,
+      "type": "modified"
+    },
+    {
+      "bbox": [
+        0.134454,
+        0.605701,
+        0.328706,
+        0.617577
+      ],
+      "change_id": "GOLD-0003",
+      "description": "Note 2 deleted",
+      "format": "pdf_native",
+      "hard_slice": false,
+      "item_type": "note",
+      "new": null,
+      "old": "2. DISCHARGE COOLER",
+      "page": 0,
+      "pair_id": "pair_01_native",
+      "sheet": null,
+      "type": "removed"
+    },
+    {
+      "bbox": [
+        0.134454,
+        0.629454,
+        0.29884,
+        0.64133
+      ],
+      "change_id": "GOLD-0004",
+      "description": "Note 3 renumbered to 2",
+      "format": "pdf_native",
+      "hard_slice": false,
+      "item_type": "note",
+      "new": "2. RELIEF TO FLARE",
+      "old": "3. RELIEF TO FLARE",
+      "page": 0,
+      "pair_id": "pair_01_native",
+      "sheet": null,
+      "type": "renumbered"
+    },
+    {
+      "bbox": [
+        0.504202,
+        0.178147,
+        0.596672,
+        0.190024
+      ],
+      "change_id": "GOLD-0005",
+      "description": "Instrument 26-TIT-9211 added",
+      "format": "pdf_native",
+      "hard_slice": false,
+      "item_type": "tag",
+      "new": "26-TIT-9211",
+      "old": null,
+      "page": 0,
+      "pair_id": "pair_01_native",
+      "sheet": null,
+      "type": "added"
+    }
+  ]
+}
