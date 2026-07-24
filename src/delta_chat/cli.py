@@ -115,10 +115,16 @@ def run(pid_a: str, pid_b: str, cfg=None, *, out_dir=None) -> int:
         except ImportError:
             print("markup overlay not available (section-09 not yet built) — skipping", file=sys.stderr)
         else:
-            data_b, _meta = resolve_pid(pid_b)
-            pdf_bytes = overlay.render_markup(delta, data_b)
-            (out / "markup.pdf").write_bytes(pdf_bytes)
-            print(f"Markup written to {out / 'markup.pdf'}")
+            # Markup is a best-effort bonus: a bug/malformed-PDF failure here must not turn an
+            # otherwise-successful `run` (delta report already written above) into exit code 1.
+            try:
+                data_b, _meta = resolve_pid(pid_b)
+                pdf_bytes = overlay.render_markup(delta, data_b, cfg=cfg)
+                (out / "markup.pdf").write_bytes(pdf_bytes)
+                print(f"Markup written to {out / 'markup.pdf'}")
+            except Exception as markup_exc:
+                traceback.print_exc()
+                print(f"markup failed, skipping: {type(markup_exc).__name__}: {markup_exc}", file=sys.stderr)
     except Exception as exc:
         traceback.print_exc()
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)

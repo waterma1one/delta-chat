@@ -103,7 +103,25 @@ def test_run_writes_trace_file_with_zero_obs_services(registered_pair, cli_cfg, 
     assert {"ingest", "delta"} <= stage_names
 
 
-def test_run_skips_markup_honestly_when_overlay_unavailable(registered_pair, cli_cfg, tmp_path, capsys):
+def test_run_writes_markup_pdf(registered_pair, cli_cfg, tmp_path):
+    # markup.overlay (section-09) now exists — `run` writes a real annotated PDF rather than
+    # skipping, which is what this test asserted before section-09 was built.
+    pid_a, pid_b = registered_pair
+    exit_code = cli.run(pid_a, pid_b, cfg=cli_cfg, out_dir=tmp_path / "out")
+    assert exit_code == 0
+    markup_pdf = tmp_path / "out" / "markup.pdf"
+    assert markup_pdf.exists()
+    assert markup_pdf.read_bytes().startswith(b"%PDF-")
+
+
+def test_run_skips_markup_honestly_when_overlay_unavailable(registered_pair, cli_cfg, tmp_path, capsys, monkeypatch):
+    import sys
+
+    import delta_chat.markup as markup_pkg
+
+    monkeypatch.delattr(markup_pkg, "overlay", raising=False)
+    monkeypatch.setitem(sys.modules, "delta_chat.markup.overlay", None)
+
     pid_a, pid_b = registered_pair
     exit_code = cli.run(pid_a, pid_b, cfg=cli_cfg, out_dir=tmp_path / "out")
     assert exit_code == 0

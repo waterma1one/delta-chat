@@ -182,10 +182,34 @@ def test_unhandled_exception_response_body_is_generic(app_cfg, registered_pair, 
     assert detail == "internal server error"
 
 
-def test_markup_returns_501_when_overlay_unavailable(client, registered_pair):
+def test_markup_returns_annotated_pdf(client, registered_pair):
+    # markup.overlay (section-09) now exists — /markup renders a real annotated PDF rather than
+    # the 501 fallback this test asserted before section-09 was built.
     pid_a, pid_b = registered_pair
     resp = client.post("/delta", json={"pid_a": pid_a, "pid_b": pid_b})
     delta_id = resp.json()["delta_id"]
+
+    r2 = client.get(f"/markup?delta_id={delta_id}")
+
+    assert r2.status_code == 200
+    assert r2.headers["content-type"] == "application/pdf"
+    assert r2.content.startswith(b"%PDF-")
+
+
+def test_markup_returns_501_when_overlay_unavailable(client, registered_pair, monkeypatch):
+    # Simulate section-09 being absent: `from ..markup import overlay` inside the endpoint only
+    # raises ImportError if the submodule isn't already cached as a package attribute AND a fresh
+    # import of it fails — so both the cached attribute and sys.modules entry must be cleared.
+    import sys
+
+    import delta_chat.markup as markup_pkg
+
+    pid_a, pid_b = registered_pair
+    resp = client.post("/delta", json={"pid_a": pid_a, "pid_b": pid_b})
+    delta_id = resp.json()["delta_id"]
+
+    monkeypatch.delattr(markup_pkg, "overlay", raising=False)
+    monkeypatch.setitem(sys.modules, "delta_chat.markup.overlay", None)
 
     r2 = client.get(f"/markup?delta_id={delta_id}")
 

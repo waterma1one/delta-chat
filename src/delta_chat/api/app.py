@@ -236,8 +236,12 @@ def create_app(cfg: Config | None = None) -> FastAPI:
             from ..markup import overlay
         except ImportError:
             raise HTTPException(status_code=501, detail="markup overlay not available") from None
+        cfg = request.app.state.cfg
         data, _meta = resolve_pid(entry["pid_b"])
-        pdf_bytes = await run_sync_ctx(overlay.render_markup, entry["delta"], data)
+        # A render_markup failure here isn't separately caught: this endpoint's whole job is
+        # producing markup (unlike CLI `run`'s best-effort step), and the global exception handler
+        # already turns it into a clean 500 rather than a raw crash.
+        pdf_bytes = await run_sync_ctx(overlay.render_markup, entry["delta"], data, cfg)
         return Response(content=pdf_bytes, media_type="application/pdf")
 
     @app.get("/metrics")
