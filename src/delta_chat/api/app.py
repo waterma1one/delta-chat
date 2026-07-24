@@ -77,6 +77,20 @@ async def _ingest_pair(pid_a: str, pid_b: str, cfg) -> tuple[Document, Document]
     return doc_a, doc_b
 
 
+def _pid_not_found(exc: PidResolutionError, *pids: str) -> HTTPException:
+    # The underlying PidResolutionError message includes resolved server filesystem paths and the
+    # allowlist itself — never echo that to an HTTP client (info disclosure / file-existence
+    # oracle). Log the full detail server-side; return only the client's own input back to them.
+    _log.warning("pid_resolution_failed", pids=pids, error=str(exc))
+    return HTTPException(status_code=404, detail=f"could not resolve pid(s): {list(pids)!r}")
+
+
+def _unknown_format(exc: ingest_base.UnknownFormatError, *pids: str) -> HTTPException:
+    # The underlying message echoes raw file magic bytes read from disk — don't return that either.
+    _log.warning("unknown_format", pids=pids, error=str(exc))
+    return HTTPException(status_code=400, detail=f"unrecognized or unsupported document format for pid(s): {list(pids)!r}")
+
+
 def _delta_id(pid_a: str, pid_b: str) -> str:
     # json.dumps unambiguously delimits/escapes each string, so a literal separator character
     # inside a pid can't make two distinct (pid_a, pid_b) pairs collide on the same hash.
@@ -114,8 +128,10 @@ def create_app(cfg: Config | None = None) -> FastAPI:
         # handler into ServerErrorMiddleware, which sits *outside* request_id_middleware, so that
         # middleware's own header-setting code never runs for this path — read the id back from
         # request.state (stashed before call_next) so the response still carries X-Request-ID.
-        _log.error("unhandled_exception", path=request.url.path, error=str(exc))
-        response = JSONResponse(status_code=500, content={"detail": f"internal error: {exc}"})
+        # Full exception detail (message, type, path) is logged server-side only — never echoed to
+        # the client, which could otherwise leak internal file paths, stack info, or other state.
+        _log.error("unhandled_exception", path=request.url.path, error_type=type(exc).__name__, error=str(exc))
+        response = JSONResponse(status_code=500, content={"detail": "internal server error"})
         request_id = getattr(request.state, "request_id", None)
         if request_id:
             response.headers["X-Request-ID"] = request_id
@@ -147,14 +163,14 @@ def create_app(cfg: Config | None = None) -> FastAPI:
         try:
             data, meta = resolve_pid(req.pid)
         except PidResolutionError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+            raise _pid_not_found(exc, req.pid) from exc
         try:
             with tracing.stage("ingest"):
                 doc = await run_sync_ctx(
                     _parse_with_log, data, req.pid, meta.get("filename"), source_rev=req.source_rev, cfg=cfg
                 )
         except ingest_base.UnknownFormatError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise _unknown_format(exc, req.pid) from exc
         return {
             "pid": doc.pid, "format": doc.format, "page_count": doc.page_count,
             "revision_label": doc.revision_label,
@@ -172,9 +188,9 @@ def create_app(cfg: Config | None = None) -> FastAPI:
                     request.app.state.delta_store, req.pid_a, req.pid_b, doc_a, doc_b, delta
                 )
         except PidResolutionError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+            raise _pid_not_found(exc, req.pid_a, req.pid_b) from exc
         except ingest_base.UnknownFormatError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise _unknown_format(exc, req.pid_a, req.pid_b) from exc
         return {
             "delta_id": delta_id,
             "report_json": entry["report_json"],
@@ -201,9 +217,9 @@ def create_app(cfg: Config | None = None) -> FastAPI:
                     delta = await run_sync_ctx(compute_delta, doc_a, doc_b, cfg)
                     _delta_id_unused, entry = _store_delta(store, req.pid_a, req.pid_b, doc_a, doc_b, delta)
             except PidResolutionError as exc:
-                raise HTTPException(status_code=404, detail=str(exc)) from exc
+                raise _pid_not_found(exc, req.pid_a, req.pid_b) from exc
             except ingest_base.UnknownFormatError as exc:
-                raise HTTPException(status_code=400, detail=str(exc)) from exc
+                raise _unknown_format(exc, req.pid_a, req.pid_b) from exc
         with tracing.stage("chat"):
             index = build_index(entry["doc_a"], entry["doc_b"], entry["delta"], cfg)
             # answer() may call the LLM (network); offload so a slow provider never blocks the loop.

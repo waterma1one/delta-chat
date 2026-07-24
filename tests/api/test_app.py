@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from delta_chat.chat.types import ChatAnswer, Citation, Claim
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_delta_returns_report_json_with_counts(client, registered_pair):
@@ -134,6 +137,49 @@ def test_unknown_pid_returns_4xx_with_clear_detail(client):
     resp = client.post("/ingest", json={"pid": "totally-unknown-pid-xyz"})
     assert 400 <= resp.status_code < 500
     assert resp.json().get("detail")
+
+
+def test_pid_error_detail_does_not_leak_server_filesystem_paths(client):
+    # A bare relative pid resolves against the resolver's allowed-roots (repo root) and fails to
+    # exist; the response must not echo the resolved absolute server path or the allowlist itself.
+    resp = client.post("/ingest", json={"pid": "does-not-exist-anywhere.pdf"})
+    assert resp.status_code == 404
+    detail = resp.json()["detail"]
+    assert "/Users/" not in detail
+    assert str(REPO_ROOT) not in detail
+
+
+def test_pid_outside_allowed_roots_error_does_not_leak_allowlist(client, tmp_path):
+    # Echoing the client's own submitted pid back is fine (they already know it); what must NOT
+    # leak is the server's allowlist configuration ("outside the allowed roots [...]").
+    outside_file = tmp_path / "secret.pdf"
+    outside_file.write_bytes(b"%PDF-1.4\n")
+    resp = client.post("/ingest", json={"pid": str(outside_file)})
+    assert resp.status_code == 404
+    detail = resp.json()["detail"]
+    assert "allowed roots" not in detail
+    assert str(REPO_ROOT) not in detail
+
+
+def test_unhandled_exception_response_body_is_generic(app_cfg, registered_pair, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from delta_chat.api.app import create_app
+
+    pid_a, pid_b = registered_pair
+
+    def _boom(query, index, cfg):
+        raise RuntimeError("sensitive internal detail: /etc/passwd or similar")
+
+    monkeypatch.setattr("delta_chat.api.app.answer", _boom)
+    client = TestClient(create_app(cfg=app_cfg), raise_server_exceptions=False)
+
+    resp = client.post("/chat", json={"pid_a": pid_a, "pid_b": pid_b, "query": "what changed?"})
+
+    assert resp.status_code == 500
+    detail = resp.json()["detail"]
+    assert "sensitive internal detail" not in detail
+    assert detail == "internal server error"
 
 
 def test_markup_returns_501_when_overlay_unavailable(client, registered_pair):
