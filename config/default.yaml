@@ -51,6 +51,14 @@ ingest:
   dpi: 250
   native_text_word_threshold: 20  # >N words => pdf_native, else pdf_scanned
   vector_min_area: 1.0            # drop degenerate get_drawings() paths (pt^2)
+  ocr_upscale: 1.75               # preprocess_for_ocr upscale factor (1.5-2x range)
+  ocr_psm: 11                     # tesseract page-seg mode (sparse text)
+  ocr_degraded_conf_threshold: 0.5  # mean_word_conf below this -> Document.raw_meta["degraded"]
+  ocr_vertical_pass: true         # OCR a 90deg-rotated copy to recover vertical/rotated tags
+  ocr_dedup_iou: 0.2              # IoU above this -> vertical-pass word treated as already recovered
+  ocr_max_deskew_deg: 5.0         # reject a minAreaRect skew estimate past this as noise (real skew is ~1-3deg)
+  dwg_convert_timeout_s: 120      # subprocess timeout for the dwg2dxf/ODA converter
+  dwg_oda_target_version: ACAD2018  # ODA File Converter output DXF version
 
 obs:
   capture_payloads: true          # default ON for demo (synthetic samples, no PII)
