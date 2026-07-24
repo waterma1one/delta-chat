@@ -52,6 +52,28 @@ def native_word_count(data: bytes) -> int:
     return total
 
 
+def max_image_area_frac(data: bytes) -> float:
+    """Largest fraction of any page's area covered by a single raster image.
+
+    ~1.0 means a page is a scanned photo/scan; ~0.0 means a born-digital vector page. This is the
+    signal that separates "a drawing with little text" from "a scan", which a word count cannot:
+    a P&ID is mostly geometry and carries very few words, while a scan re-imported with its OCR
+    layer carries many. Only the raster tells you which pipeline the page actually needs.
+    """
+    import fitz
+
+    frac = 0.0
+    with fitz.open(stream=data, filetype="pdf") as doc:
+        for page in doc:
+            page_area = abs(page.rect.get_area())
+            if page_area <= 0:
+                continue
+            for img in page.get_images(full=True):
+                for rect in page.get_image_rects(img[0]):
+                    frac = max(frac, abs(rect.get_area()) / page_area)
+    return frac
+
+
 # --- registry ------------------------------------------------------------------------------------
 
 # adapter registry keyed by format name; populated by the adapters at import time via register().
@@ -85,12 +107,20 @@ def detect_format(data: bytes, filename: str | None, cfg: Config | None = None) 
     elif dwg_adapter is not None and dwg_adapter.detect(data, filename):
         return "dwg"
     if is_pdf:
-        threshold = int(cfg.get("ingest.native_text_word_threshold", 20))
+        # Native iff there is a real text layer AND the page is not dominated by a raster.
+        # Both signals are needed: a P&ID is mostly geometry so its word count is naturally tiny
+        # (thresholding on it alone sent every born-digital drawing through OCR), while a scan
+        # re-saved with its OCR layer has a high word count but still needs the scanned path.
+        min_words = int(cfg.get("ingest.native_min_words", 1))
+        img_frac_max = float(cfg.get("ingest.scanned_image_area_frac", 0.80))
         try:
             words = native_word_count(data)
+            img_frac = max_image_area_frac(data)
         except Exception as exc:  # corrupt/unreadable PDF -> traceable error
             raise UnknownFormatError(f"unreadable PDF ({exc})") from exc
-        return "pdf_native" if words > threshold else "pdf_scanned"
+        if words >= min_words and img_frac < img_frac_max:
+            return "pdf_native"
+        return "pdf_scanned"
     raise UnknownFormatError(
         f"unrecognized format (filename={filename!r}, magic={data[:8]!r})"
     )

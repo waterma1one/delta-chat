@@ -1,9 +1,9 @@
 {
   "chat": {
     "abstention": {
-      "f1": 0.461538,
-      "precision": 0.3,
-      "recall": 1.0
+      "f1": 0.8,
+      "precision": 1.0,
+      "recall": 0.666667
     },
     "answer_relevancy": {
       "mean": 1.0,
@@ -22,12 +22,12 @@
     },
     "per_class": {
       "delta": {
-        "total": 8,
-        "valid": 8
+        "total": 20,
+        "valid": 20
       },
       "doc_span": {
-        "total": 7,
-        "valid": 7
+        "total": 35,
+        "valid": 35
       }
     }
   },
@@ -38,101 +38,102 @@
         "format:dwg": {
           "counts": {
             "n_gold": 3,
-            "n_pred": 0
+            "n_pred": 2
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             },
             "0.6": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             },
             "0.7": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             },
             "0.8": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             }
           },
-          "soft_f1": 0.0,
+          "soft_f1": 0.795207,
           "type_confusion": {
             "added": {
               "MISSED": 1
             },
             "modified": {
-              "MISSED": 1
+              "modified": 1
             },
             "moved": {
-              "MISSED": 1
+              "moved": 1
             }
           }
         },
         "format:pdf_native": {
           "counts": {
             "n_gold": 4,
-            "n_pred": 2
+            "n_pred": 3
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.666667,
-              "fn": 2,
+              "f1": 0.857143,
+              "fn": 1,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.5,
-              "tp": 2
+              "recall": 0.75,
+              "tp": 3
             },
             "0.6": {
-              "f1": 0.333333,
-              "fn": 3,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.25,
-              "tp": 1
+              "f1": 0.857143,
+              "fn": 1,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 0.75,
+              "tp": 3
             },
             "0.7": {
-              "f1": 0.333333,
-              "fn": 3,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.25,
-              "tp": 1
+              "f1": 0.857143,
+              "fn": 1,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 0.75,
+              "tp": 3
             },
             "0.8": {
-              "f1": 0.333333,
-              "fn": 3,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.25,
-              "tp": 1
+              "f1": 0.857143,
+              "fn": 1,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 0.75,
+              "tp": 3
             }
           },
-          "soft_f1": 0.565946,
+          "soft_f1": 0.830933,
           "type_confusion": {
             "added": {
               "added": 1
             },
             "modified": {
-              "MISSED": 2
+              "MISSED": 1,
+              "modified": 1
             },
             "moved": {
               "moved": 1
@@ -142,162 +143,164 @@
         "format:pdf_scanned": {
           "counts": {
             "n_gold": 5,
-            "n_pred": 0
+            "n_pred": 5
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.0,
-              "fn": 5,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.6": {
-              "f1": 0.0,
-              "fn": 5,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.7": {
-              "f1": 0.0,
-              "fn": 5,
-              "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "f1": 0.8,
+              "fn": 1,
+              "fp": 1,
+              "precision": 0.8,
+              "recall": 0.8,
+              "tp": 4
             },
             "0.8": {
-              "f1": 0.0,
-              "fn": 5,
-              "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "f1": 0.8,
+              "fn": 1,
+              "fp": 1,
+              "precision": 0.8,
+              "recall": 0.8,
+              "tp": 4
             }
           },
-          "soft_f1": 0.0,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
-              "MISSED": 1
+              "added": 1
             },
             "modified": {
-              "MISSED": 2
+              "modified": 2
             },
             "removed": {
-              "MISSED": 1
+              "removed": 1
             },
             "renumbered": {
-              "MISSED": 1
+              "removed": 1
             }
           }
         },
         "hard_slice:False": {
           "counts": {
             "n_gold": 9,
-            "n_pred": 0
+            "n_pred": 7
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.0,
-              "fn": 9,
+              "f1": 0.875,
+              "fn": 2,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.777778,
+              "tp": 7
             },
             "0.6": {
-              "f1": 0.0,
-              "fn": 9,
+              "f1": 0.875,
+              "fn": 2,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.777778,
+              "tp": 7
             },
             "0.7": {
-              "f1": 0.0,
-              "fn": 9,
-              "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "f1": 0.75,
+              "fn": 3,
+              "fp": 1,
+              "precision": 0.857143,
+              "recall": 0.666667,
+              "tp": 6
             },
             "0.8": {
-              "f1": 0.0,
-              "fn": 9,
-              "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "f1": 0.75,
+              "fn": 3,
+              "fp": 1,
+              "precision": 0.857143,
+              "recall": 0.666667,
+              "tp": 6
             }
           },
-          "soft_f1": 0.0,
+          "soft_f1": 0.854792,
           "type_confusion": {
             "added": {
-              "MISSED": 2
+              "MISSED": 1,
+              "added": 1
             },
             "modified": {
-              "MISSED": 4
+              "MISSED": 1,
+              "modified": 3
             },
             "moved": {
-              "MISSED": 1
+              "moved": 1
             },
             "removed": {
-              "MISSED": 1
+              "removed": 1
             },
             "renumbered": {
-              "MISSED": 1
+              "removed": 1
             }
           }
         },
         "hard_slice:True": {
           "counts": {
             "n_gold": 3,
-            "n_pred": 2
+            "n_pred": 3
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.8,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.666667,
-              "tp": 2
+              "recall": 1.0,
+              "tp": 3
             },
             "0.6": {
-              "f1": 0.4,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.333333,
-              "tp": 1
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 3
             },
             "0.7": {
-              "f1": 0.4,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.333333,
-              "tp": 1
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 3
             },
             "0.8": {
-              "f1": 0.4,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.333333,
-              "tp": 1
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 3
             }
           },
-          "soft_f1": 0.722817,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
               "added": 1
             },
             "modified": {
-              "MISSED": 1
+              "modified": 1
             },
             "moved": {
               "moved": 1
@@ -307,49 +310,49 @@
         "pair:pair_02_hard": {
           "counts": {
             "n_gold": 3,
-            "n_pred": 2
+            "n_pred": 3
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.8,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.666667,
-              "tp": 2
+              "recall": 1.0,
+              "tp": 3
             },
             "0.6": {
-              "f1": 0.4,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.333333,
-              "tp": 1
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 3
             },
             "0.7": {
-              "f1": 0.4,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.333333,
-              "tp": 1
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 3
             },
             "0.8": {
-              "f1": 0.4,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.5,
-              "recall": 0.333333,
-              "tp": 1
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 3
             }
           },
-          "soft_f1": 0.722817,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
               "added": 1
             },
             "modified": {
-              "MISSED": 1
+              "modified": 1
             },
             "moved": {
               "moved": 1
@@ -359,55 +362,55 @@
         "pair:pair_03_scanned": {
           "counts": {
             "n_gold": 5,
-            "n_pred": 0
+            "n_pred": 5
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.0,
-              "fn": 5,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.6": {
-              "f1": 0.0,
-              "fn": 5,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.7": {
-              "f1": 0.0,
-              "fn": 5,
-              "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "f1": 0.8,
+              "fn": 1,
+              "fp": 1,
+              "precision": 0.8,
+              "recall": 0.8,
+              "tp": 4
             },
             "0.8": {
-              "f1": 0.0,
-              "fn": 5,
-              "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "f1": 0.8,
+              "fn": 1,
+              "fp": 1,
+              "precision": 0.8,
+              "recall": 0.8,
+              "tp": 4
             }
           },
-          "soft_f1": 0.0,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
-              "MISSED": 1
+              "added": 1
             },
             "modified": {
-              "MISSED": 2
+              "modified": 2
             },
             "removed": {
-              "MISSED": 1
+              "removed": 1
             },
             "renumbered": {
-              "MISSED": 1
+              "removed": 1
             }
           }
         },
@@ -460,117 +463,117 @@
         "pair:pair_05_dxf": {
           "counts": {
             "n_gold": 3,
-            "n_pred": 0
+            "n_pred": 2
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             },
             "0.6": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             },
             "0.7": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             },
             "0.8": {
-              "f1": 0.0,
-              "fn": 3,
+              "f1": 0.8,
+              "fn": 1,
               "fp": 0,
-              "precision": 0.0,
-              "recall": 0.0,
-              "tp": 0
+              "precision": 1.0,
+              "recall": 0.666667,
+              "tp": 2
             }
           },
-          "soft_f1": 0.0,
+          "soft_f1": 0.795207,
           "type_confusion": {
             "added": {
               "MISSED": 1
             },
             "modified": {
-              "MISSED": 1
+              "modified": 1
             },
             "moved": {
-              "MISSED": 1
+              "moved": 1
             }
           }
         }
       },
       "counts": {
         "n_gold": 12,
-        "n_pred": 7
+        "n_pred": 21
       },
       "per_tau": {
         "0.5": {
-          "f1": 0.210526,
-          "fn": 10,
-          "fp": 5,
-          "precision": 0.285714,
-          "recall": 0.166667,
-          "tp": 2
+          "f1": 0.606061,
+          "fn": 2,
+          "fp": 11,
+          "precision": 0.47619,
+          "recall": 0.833333,
+          "tp": 10
         },
         "0.6": {
-          "f1": 0.105263,
-          "fn": 11,
-          "fp": 6,
-          "precision": 0.142857,
-          "recall": 0.083333,
-          "tp": 1
+          "f1": 0.606061,
+          "fn": 2,
+          "fp": 11,
+          "precision": 0.47619,
+          "recall": 0.833333,
+          "tp": 10
         },
         "0.7": {
-          "f1": 0.105263,
-          "fn": 11,
-          "fp": 6,
-          "precision": 0.142857,
-          "recall": 0.083333,
-          "tp": 1
+          "f1": 0.545455,
+          "fn": 3,
+          "fp": 12,
+          "precision": 0.428571,
+          "recall": 0.75,
+          "tp": 9
         },
         "0.8": {
-          "f1": 0.105263,
-          "fn": 11,
-          "fp": 6,
-          "precision": 0.142857,
-          "recall": 0.083333,
-          "tp": 1
+          "f1": 0.545455,
+          "fn": 3,
+          "fp": 12,
+          "precision": 0.428571,
+          "recall": 0.75,
+          "tp": 9
         }
       },
-      "soft_f1": 0.547931,
+      "soft_f1": 0.673571,
       "type_confusion": {
         "SPURIOUS": {
-          "added": 2,
-          "modified": 1,
-          "moved": 2
+          "added": 8,
+          "modified": 2,
+          "removed": 1
         },
         "added": {
-          "MISSED": 2,
-          "added": 1
+          "MISSED": 1,
+          "added": 2
         },
         "modified": {
-          "MISSED": 5
+          "MISSED": 1,
+          "modified": 4
         },
         "moved": {
-          "MISSED": 1,
-          "moved": 1
+          "moved": 2
         },
         "removed": {
-          "MISSED": 1
+          "removed": 1
         },
         "renumbered": {
-          "MISSED": 1
+          "removed": 1
         }
       }
     },
@@ -579,43 +582,43 @@
         "format:pdf_native": {
           "counts": {
             "n_gold": 5,
-            "n_pred": 4
+            "n_pred": 5
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.888889,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.8,
-              "tp": 4
+              "recall": 1.0,
+              "tp": 5
             },
             "0.6": {
-              "f1": 0.888889,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.8,
-              "tp": 4
+              "recall": 1.0,
+              "tp": 5
             },
             "0.7": {
-              "f1": 0.666667,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.75,
-              "recall": 0.6,
-              "tp": 3
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.8": {
-              "f1": 0.444444,
-              "fn": 3,
-              "fp": 2,
-              "precision": 0.5,
-              "recall": 0.4,
-              "tp": 2
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             }
           },
-          "soft_f1": 0.861442,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
               "added": 1
@@ -627,50 +630,50 @@
               "removed": 1
             },
             "renumbered": {
-              "MISSED": 1
+              "renumbered": 1
             }
           }
         },
         "hard_slice:False": {
           "counts": {
             "n_gold": 5,
-            "n_pred": 4
+            "n_pred": 5
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.888889,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.8,
-              "tp": 4
+              "recall": 1.0,
+              "tp": 5
             },
             "0.6": {
-              "f1": 0.888889,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.8,
-              "tp": 4
+              "recall": 1.0,
+              "tp": 5
             },
             "0.7": {
-              "f1": 0.666667,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.75,
-              "recall": 0.6,
-              "tp": 3
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.8": {
-              "f1": 0.444444,
-              "fn": 3,
-              "fp": 2,
-              "precision": 0.5,
-              "recall": 0.4,
-              "tp": 2
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             }
           },
-          "soft_f1": 0.861442,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
               "added": 1
@@ -682,50 +685,50 @@
               "removed": 1
             },
             "renumbered": {
-              "MISSED": 1
+              "renumbered": 1
             }
           }
         },
         "pair:pair_01_native": {
           "counts": {
             "n_gold": 5,
-            "n_pred": 4
+            "n_pred": 5
           },
           "per_tau": {
             "0.5": {
-              "f1": 0.888889,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.8,
-              "tp": 4
+              "recall": 1.0,
+              "tp": 5
             },
             "0.6": {
-              "f1": 0.888889,
-              "fn": 1,
+              "f1": 1.0,
+              "fn": 0,
               "fp": 0,
               "precision": 1.0,
-              "recall": 0.8,
-              "tp": 4
+              "recall": 1.0,
+              "tp": 5
             },
             "0.7": {
-              "f1": 0.666667,
-              "fn": 2,
-              "fp": 1,
-              "precision": 0.75,
-              "recall": 0.6,
-              "tp": 3
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             },
             "0.8": {
-              "f1": 0.444444,
-              "fn": 3,
-              "fp": 2,
-              "precision": 0.5,
-              "recall": 0.4,
-              "tp": 2
+              "f1": 1.0,
+              "fn": 0,
+              "fp": 0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "tp": 5
             }
           },
-          "soft_f1": 0.861442,
+          "soft_f1": 1.0,
           "type_confusion": {
             "added": {
               "added": 1
@@ -737,55 +740,51 @@
               "removed": 1
             },
             "renumbered": {
-              "MISSED": 1
+              "renumbered": 1
             }
           }
         }
       },
       "counts": {
         "n_gold": 5,
-        "n_pred": 7
+        "n_pred": 5
       },
       "per_tau": {
         "0.5": {
-          "f1": 0.666667,
-          "fn": 1,
-          "fp": 3,
-          "precision": 0.571429,
-          "recall": 0.8,
-          "tp": 4
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 5
         },
         "0.6": {
-          "f1": 0.666667,
-          "fn": 1,
-          "fp": 3,
-          "precision": 0.571429,
-          "recall": 0.8,
-          "tp": 4
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 5
         },
         "0.7": {
-          "f1": 0.5,
-          "fn": 2,
-          "fp": 4,
-          "precision": 0.428571,
-          "recall": 0.6,
-          "tp": 3
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 5
         },
         "0.8": {
-          "f1": 0.333333,
-          "fn": 3,
-          "fp": 5,
-          "precision": 0.285714,
-          "recall": 0.4,
-          "tp": 2
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 5
         }
       },
-      "soft_f1": 0.772308,
+      "soft_f1": 1.0,
       "type_confusion": {
-        "SPURIOUS": {
-          "moved": 1,
-          "removed": 2
-        },
         "added": {
           "added": 1
         },
@@ -796,7 +795,7 @@
           "removed": 1
         },
         "renumbered": {
-          "MISSED": 1
+          "renumbered": 1
         }
       }
     }
@@ -804,34 +803,43 @@
   "deterministic": {
     "citation_validity": 1.0,
     "cost_usd_per_request": 0.0,
-    "delta_f1_test": 0.105263,
-    "latency_p95_ms": 1711.296
+    "delta_f1_test": 0.545455,
+    "latency_p95_ms": 145.873
   },
   "meta": {
-    "generated_at": "2026-07-24T18:27:20.324461+00:00"
+    "generated_at": "2026-07-24T19:53:38.240387+00:00"
+  },
+  "ocr": {
+    "pair_03_scanned": {
+      "cer": 0.366337,
+      "degraded": false,
+      "n_hyp_words": 13,
+      "n_ref_words": 13,
+      "wer": 0.384615
+    }
   },
   "retrieval": {
     "1": {
-      "hit_rate": 0.111111,
-      "mrr": 0.111111,
+      "hit_rate": 0.0,
+      "mrr": 0.0,
       "n_queries": 9,
-      "recall": 0.111111
+      "recall": 0.0
     },
     "3": {
       "hit_rate": 0.111111,
-      "mrr": 0.111111,
+      "mrr": 0.037037,
       "n_queries": 9,
       "recall": 0.111111
     },
     "5": {
       "hit_rate": 0.111111,
-      "mrr": 0.111111,
+      "mrr": 0.037037,
       "n_queries": 9,
       "recall": 0.111111
     },
     "10": {
       "hit_rate": 0.111111,
-      "mrr": 0.111111,
+      "mrr": 0.037037,
       "n_queries": 9,
       "recall": 0.111111
     }

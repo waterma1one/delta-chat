@@ -56,3 +56,50 @@ def test_compute_delta_is_deterministic(repo_root, cfg):
     _, json2 = render_report(delta2)
 
     assert json.dumps(json1, sort_keys=True) == json.dumps(json2, sort_keys=True)
+
+
+# --- instrumentation (regression: the delta counter and stage attrs were never populated) --------
+
+
+def test_compute_delta_increments_the_prometheus_delta_counter(cfg, item_factory):
+    """The counter was defined and unit-tested but no production path ever called it, so
+    `delta_chat_delta_changes_total` stayed at 0.0 no matter what a real run produced."""
+    from delta_chat.canonical.model import Document
+    from delta_chat.observability import metrics
+
+    metrics.reset()
+    doc_a = Document(pid="A", format="pdf_native", page_count=1, revision_label="A",
+                     sheet_size=(1.0, 1.0), items=[item_factory("a1", "26-FV-9038")])
+    doc_b = Document(pid="B", format="pdf_native", page_count=1, revision_label="B",
+                     sheet_size=(1.0, 1.0), items=[item_factory("b1", "26-FV-9040")])
+
+    delta = compute_delta(doc_a, doc_b, cfg)
+
+    assert delta.changes  # the fixture genuinely differs, so the assertion below is meaningful
+    body, _ = metrics.render_prometheus()
+    assert f"delta_chat_delta_changes_total {float(len(delta.changes))}" in body
+
+
+def test_delta_stage_records_change_counts_in_the_trace(cfg, item_factory, tmp_path):
+    """Traces carried timing but no detail — every stage's `attrs` was an empty dict, so a trace
+    told you a run took N ms but not what it produced."""
+    from delta_chat.canonical.model import Document
+    from delta_chat.config import Config
+    from delta_chat.observability import tracing
+
+    trace_cfg = Config({**cfg.data, "obs": {**cfg.data["obs"], "trace_dir": str(tmp_path),
+                                            "otlp_enabled": False}})
+    doc_a = Document(pid="A", format="pdf_native", page_count=1, revision_label="A",
+                     sheet_size=(1.0, 1.0), items=[item_factory("a1", "26-FV-9038")])
+    doc_b = Document(pid="B", format="pdf_native", page_count=1, revision_label="B",
+                     sheet_size=(1.0, 1.0), items=[item_factory("b1", "26-FV-9040")])
+
+    tr = tracing.start_request({"command": "test"}, cfg=trace_cfg)
+    with tracing.stage("delta"):
+        compute_delta(doc_a, doc_b, trace_cfg)
+    tr.finish()
+
+    trace = json.loads(next(Path(tmp_path).glob("*.json")).read_text())
+    delta_stage = next(s for s in trace["stages"] if s["name"] == "delta")
+    assert delta_stage["attrs"]["change_count"] > 0
+    assert delta_stage["attrs"]["counts_by_type"]

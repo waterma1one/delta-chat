@@ -82,6 +82,28 @@ def test_chat_rejected_is_200_not_an_error(client, registered_pair, mock_answer)
     assert body["refusal_reason"]
 
 
+def test_chat_without_a_configured_provider_is_503_not_500(client, registered_pair, monkeypatch):
+    """A keyless deployment is a config state, not a server fault: ingest/delta/report all work
+    without a key and only answer generation needs one, so the UI must be able to say "configure a
+    key" instead of surfacing an opaque 500."""
+    from delta_chat.api import app as app_module
+    from delta_chat.chat.llm import LlmUnavailableError
+
+    def _no_provider(*a, **k):
+        raise LlmUnavailableError("no LLM provider configured: set ANTHROPIC_API_KEY, ...")
+
+    monkeypatch.setattr(app_module, "answer", _no_provider)
+    pid_a, pid_b = registered_pair
+
+    resp = client.post("/chat", json={"pid_a": pid_a, "pid_b": pid_b, "query": "what changed?"})
+
+    assert resp.status_code == 503
+    detail = resp.json()["detail"]
+    assert "no LLM provider" in detail
+    # ingest/delta still work without a key, and the client is told so
+    assert "do not require a key" in detail
+
+
 def test_metrics_exposes_prometheus_text(client):
     resp = client.get("/metrics")
     assert resp.status_code == 200

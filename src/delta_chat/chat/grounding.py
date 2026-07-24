@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 
+from . import index as _index
 from .index import tokenize
 from .types import Chunk, Citation, Claim, GroundingResult
 
@@ -52,28 +53,43 @@ def _score_chunks(query: str, chunks: list[Chunk]) -> list[float]:
 
 
 def check_sufficiency(query: str, chunks: list[Chunk], cfg) -> tuple[bool, str | None]:
-    """Normalized top-k score-margin gate (+ optional entailment check). Never thresholds a raw
-    score directly: a flat top-k (no chunk stands out) abstains even when absolute coverage looks
-    strong, because a flat top-k means nothing distinguishes the best answer from the rest."""
+    """Absolute query-coverage gate, then the optional entailment check.
+
+    Gates on how much of the query the *best* retrieved chunk actually covers — an absolute,
+    bounded signal — rather than on the gap between the best and second-best.
+
+    An earlier version gated on that gap (over min-max-normalized scores) and was structurally
+    broken: whenever the top two chunks tied, both normalized to exactly 1.0, so the gap was 0.0
+    and the gate abstained at *any* threshold > 0. Measured on the eval set that refused 6 of 9
+    answerable questions, including ones whose answer was sitting in the delta report. Ties are
+    common on sparse drawing text, and a tie at the top means several chunks are equally relevant
+    — evidence *for* sufficiency, not against it.
+
+    Two stages by design: this cheap deterministic check rejects the clearly-ungrounded case with
+    no LLM call, and anything above the floor is handed to `_entailment_check` to make the harder
+    judgment. So the floor should be permissive enough to defer borderline cases, not decide them.
+    """
     if not chunks:
         return False, "no relevant chunks were retrieved for this query"
 
-    scores = _score_chunks(query, chunks)
-    if len(scores) == 1:
-        # nothing to compare against: a single retrieved chunk is "sufficient" iff it has any
-        # lexical overlap with the query at all (min-max normalization is undefined for n=1).
-        margin = 1.0 if scores[0] > 0 else 0.0
-    else:
-        lo, hi = min(scores), max(scores)
-        normalized = [0.0] * len(scores) if hi <= lo else [(s - lo) / (hi - lo) for s in scores]
-        ranked = sorted(normalized, reverse=True)
-        margin = ranked[0] - ranked[1]
+    # A "what changed?" question routed to the delta pool is grounded by construction: the delta
+    # report is precisely the answer surface for it, and lexical overlap is the wrong test because
+    # such a query names no entity to overlap *with* ("what changed on sheet 3?" shares no term
+    # with "Tag 26-FV-9038 -> 26-FV-9040"). Whether the retrieved changes actually answer it is the
+    # entailment stage's job. Content questions still have to clear the coverage floor below.
+    if _index.route_intent(query) == "delta" and any(c.source_type == "delta" for c in chunks):
+        if cfg.get("chat.sufficiency.use_entailment_check", True):
+            return _entailment_check(query, chunks, cfg)
+        return True, None
 
-    margin_min = float(cfg.get("chat.sufficiency.margin_min", 0.15))
-    if margin < margin_min:
+    scores = _score_chunks(query, chunks)
+    top = max(scores) if scores else 0.0
+
+    coverage_min = float(cfg.get("chat.sufficiency.coverage_min", 0.10))
+    if top < coverage_min:
         return False, (
-            f"retrieved evidence has no clear best match (normalized score margin "
-            f"{margin:.2f} < {margin_min:.2f}) — top candidates are too similar in relevance to trust"
+            f"retrieved evidence covers only {top:.0%} of the query terms (minimum "
+            f"{coverage_min:.0%}) — nothing retrieved is on-topic enough to ground an answer"
         )
 
     if cfg.get("chat.sufficiency.use_entailment_check", True):

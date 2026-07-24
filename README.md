@@ -126,11 +126,20 @@ scanned / DWG), and by the **hard slice** — never a single averaged headline n
   answerable/unanswerable gold questions.
 - **Retrieval**: Hit-Rate/Recall/MRR at multiple k, plus a cost/latency budget table
   (`budget.md`) extrapolated to a larger sheet count.
-- **The judge is cross-family-validated**: `eval.judge.model` is asserted to be a different model
-  family than the answerer (`llm.model`) — a same-family judge can't credibly validate its own
-  outputs — and Cohen's kappa is reported for judge/human agreement. **Honest caveat**: with a single
-  annotator, a small gold set, and class imbalance, that kappa is a directional signal about judge
-  reliability, not a statistically unimpeachable number.
+- **OCR**: word- and character-error rate for the scanned path, scored against `ocr_truth.txt` (the
+  exact token sequence of the native page before it was rasterized). Reported in the scorecard's
+  `ocr` block, never gated — the number moves with the installed Tesseract build, so gating it would
+  fail CI on an environment upgrade rather than on a real regression. Currently **WER 38%,
+  CER 37%** on `pair_03_scanned`; see the failure taxonomy.
+- **The judge is cross-family-enforced**: `eval.judge.model` is asserted at runtime to be a
+  different model family than the answerer (`llm.model`) — a same-family judge can't credibly
+  validate its own outputs — and prompts are order-swapped to counter position bias.
+  **Not yet agreement-validated**: `eval/judge.py` implements `cohen_kappa()` and a judge/human
+  confusion matrix, and both are unit-tested, but *no human-annotated label set exists in this
+  repo*, so kappa has never actually been computed on real data. Until it is, the judge is
+  cross-family and order-swapped but its agreement with a human is unmeasured — treat the
+  model-graded numbers accordingly. Producing that annotation set is the first item under
+  [What's next](#whats-next).
 
 **CI gates ONLY the deterministic block** (delta P/R/F1 on the held-out test split, citation
 validity, latency, cost) against `eval/baseline_scorecard.json`, via `eval.regression_thresholds`.
@@ -157,7 +166,10 @@ convention used elsewhere in this codebase for live-network paths (see `tests/te
 | Missed change | a real edit produces no `Change` | delta recall / false negative |
 | Mislabeled change type | a MOVED change classed as MODIFIED | type-confusion matrix |
 | Over-answered unanswerable | answers a question the sources can't support | abstention precision/recall |
-| OCR error on small text | tiny/dense scanned text misread | measured OCR error rate, reported not hidden |
+| OCR error on small text | tiny/dense scanned text misread | **measured: WER 38% / CER 37%** on `pair_03_scanned` (scorecard `ocr` block) |
+| **Multi-sheet change missed** | `pair_04_multisheet`'s sheet-3 edit produces no matching `Change` | delta recall — it is a real FN, visible as `pair:pair_04_multisheet F1=0.000` in the segmented scorecard |
+| **Judge agreement unmeasured** | `cohen_kappa()` is implemented and unit-tested but has never been run | no human-annotated label set exists in this repo — the judge is cross-family and order-swapped, but its agreement with a human is **unknown**, so model-graded numbers carry that caveat |
+| Spurious change (low precision) | delta precision is 0.48 at tau=0.5 — roughly half the reported changes are FPs | delta precision, per-segment; the dual-confidence fields (`match_conf`/`class_conf`) let a caller filter, but nothing filters by default |
 | **Note-gate not calibrated** | no train-split calibration script exists in this repo for `delta.notes.semantic_low/high` | collapsed to a fixed cosine cutoff (`0.90`/`0.90`) so the ambiguous LLM-gated band is empty by construction — this is a **deliberate cut**, not a bug: it trades away the nuance a real calibration would recover (distinguishing "cosmetic reword" from "meaningful reword" at the margin) for a demo path that never crashes and never needs a key for delta computation |
 
 ## Deliberate cuts / boundaries
@@ -178,6 +190,12 @@ convention used elsewhere in this codebase for live-network paths (see `tests/te
 
 ## What's next
 
+- **Annotate a human judge-agreement set and report Cohen's κ.** The harness exists
+  (`eval/judge.py`); what's missing is the labels. Until then the model-graded numbers are
+  reported but not validated — see the failure taxonomy.
+- **Raise delta precision.** Recall is 0.83 on the held-out split but precision is 0.48; the
+  cheapest win is filtering or down-weighting `added`/`removed` changes whose `match_conf` is 0
+  (the "possible missed-modify" cases already flagged in the report).
 - Symbol detection + a real connectivity-graph delta.
 - Learned alignment: embeddings fine-tuned on drawing-specific tokens (tag formats, line numbers)
   rather than a generic text encoder.

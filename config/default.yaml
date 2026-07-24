@@ -50,13 +50,20 @@ chat:
   top_k: 8
   rrf_k: 60
   sufficiency:
-    margin_min: 0.15
+    # Minimum fraction of the query's terms the best retrieved chunk must cover before we even
+    # attempt an answer. Deliberately permissive: this is the cheap first stage that rejects the
+    # clearly-ungrounded case for free, and use_entailment_check below is the second stage that
+    # judges the borderline ones. (Replaced a top-vs-second margin gate that abstained on ties.)
+    coverage_min: 0.10
     use_entailment_check: true
 
 ingest:
   ocr_engine: tesseract           # tesseract | doctr
   dpi: 250
-  native_text_word_threshold: 20  # >N words => pdf_native, else pdf_scanned
+  # native-vs-scanned probe: needs BOTH a real text layer and a non-raster page. A word-count
+  # threshold alone misclassified every born-digital P&ID (they carry <20 words) as a scan.
+  native_min_words: 1             # >=N extractable words required to call a PDF born-digital
+  scanned_image_area_frac: 0.80   # a raster covering >= this fraction of a page => treat as a scan
   vector_min_area: 1.0            # drop degenerate get_drawings() paths (pt^2)
   ocr_upscale: 1.75               # preprocess_for_ocr upscale factor (1.5-2x range)
   ocr_psm: 11                     # tesseract page-seg mode (sparse text)

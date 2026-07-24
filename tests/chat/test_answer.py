@@ -123,19 +123,63 @@ def test_anthropic_citations_path_parses_interleaved_blocks(chat_index, cfg, moc
 
 # --- sufficiency gate -------------------------------------------------------------------
 
-def test_sufficiency_gate_abstains_on_flat_normalized_margin(cfg):
+def _chunk(cid: str, text: str) -> Chunk:
+    return Chunk(citation_id=cid, source_type="doc_a", text=text, pid="A",
+                 page=0, sheet=None, bbox=None, char_range=(0, len(text)))
+
+
+def test_sufficiency_gate_does_not_abstain_when_top_chunks_tie(cfg):
+    """Regression: the previous gate scored top-vs-second over min-max-normalized scores, so two
+    equally-relevant chunks normalized to 1.0/1.0 -> margin 0.0 -> abstain at any threshold. Several
+    chunks that all cover the query is evidence FOR sufficiency; it must not force a refusal."""
+    cfg.data["chat"]["sufficiency"]["use_entailment_check"] = False  # isolate the deterministic gate
     identical_text = "valve pressure rating specification document text"
-    chunks = [
-        Chunk(citation_id="doc_a:1", source_type="doc_a", text=identical_text, pid="A",
-              page=0, sheet=None, bbox=None, char_range=(0, len(identical_text))),
-        Chunk(citation_id="doc_a:2", source_type="doc_a", text=identical_text, pid="A",
-              page=0, sheet=None, bbox=None, char_range=(0, len(identical_text))),
-    ]
+    chunks = [_chunk("doc_a:1", identical_text), _chunk("doc_a:2", identical_text)]
 
     sufficient, reason = grounding.check_sufficiency("valve pressure rating", chunks, cfg)
 
+    assert sufficient is True
+    assert reason is None
+
+
+def test_sufficiency_gate_abstains_when_nothing_covers_the_query(cfg):
+    cfg.data["chat"]["sufficiency"]["use_entailment_check"] = False
+    chunks = [_chunk("doc_a:1", "totally unrelated boilerplate about drawing borders")]
+
+    sufficient, reason = grounding.check_sufficiency("design pressure of the vessel", chunks, cfg)
+
     assert sufficient is False
-    assert reason
+    assert "covers only" in (reason or "")
+
+
+def test_sufficiency_gate_coverage_floor_is_config_driven(cfg):
+    cfg.data["chat"]["sufficiency"]["use_entailment_check"] = False
+    chunks = [_chunk("doc_a:1", "valve FV-9040 setpoint")]
+    query = "valve setpoint and pressure rating and flow"  # partial overlap only
+
+    cfg.data["chat"]["sufficiency"]["coverage_min"] = 0.01
+    assert grounding.check_sufficiency(query, chunks, cfg)[0] is True
+
+    cfg.data["chat"]["sufficiency"]["coverage_min"] = 0.99
+    assert grounding.check_sufficiency(query, chunks, cfg)[0] is False
+
+
+def test_sufficiency_gate_above_floor_defers_to_entailment_check(cfg, monkeypatch):
+    """The floor must not decide borderline cases on its own — it hands them to the LLM stage."""
+    cfg.data["chat"]["sufficiency"]["use_entailment_check"] = True
+    called = {}
+
+    def _fake(query, chunks, c):
+        called["yes"] = True
+        return False, "entailment says no"
+
+    monkeypatch.setattr(grounding, "_entailment_check", _fake)
+    chunks = [_chunk("doc_a:1", "valve pressure rating")]
+
+    sufficient, reason = grounding.check_sufficiency("valve pressure rating", chunks, cfg)
+
+    assert called.get("yes") is True
+    assert sufficient is False and reason == "entailment says no"
 
 
 def test_sufficiency_gate_no_chunks_is_insufficient(cfg):

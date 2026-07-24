@@ -13,9 +13,55 @@ from pathlib import Path
 
 import pytest
 
-from eval.run_eval import _offline_llm_complete, _OfflineJudge, main
+from eval.run_eval import _offline_llm_complete, _OfflineJudge, main, resolve_pair_files
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+# --- sample-pair file resolution ------------------------------------------------------------------
+# Regression: hardcoded rev_a.pdf/rev_b.pdf silently skipped the scanned and DXF pairs, so 8 of the
+# 12 held-out gold changes were scored as misses against zero predictions.
+
+
+def test_resolves_plain_pdf_pair(tmp_path):
+    (tmp_path / "rev_a.pdf").write_bytes(b"a")
+    (tmp_path / "rev_b.pdf").write_bytes(b"b")
+    a, b = resolve_pair_files(tmp_path)
+    assert a.name == "rev_a.pdf" and b.name == "rev_b.pdf"
+
+
+def test_resolves_dxf_pair(tmp_path):
+    (tmp_path / "rev_a.dxf").write_bytes(b"a")
+    (tmp_path / "rev_b.dxf").write_bytes(b"b")
+    a, b = resolve_pair_files(tmp_path)
+    assert a.name == "rev_a.dxf" and b.name == "rev_b.dxf"
+
+
+def test_prefers_scanned_rev_b_over_native_variant(tmp_path):
+    """pair_03_scanned ships both; the scanned one is the whole point of that pair, so evaluating
+    the native variant would quietly skip the OCR path it exists to exercise."""
+    (tmp_path / "rev_a.pdf").write_bytes(b"a")
+    (tmp_path / "rev_b_native.pdf").write_bytes(b"n")
+    (tmp_path / "rev_b_scanned.pdf").write_bytes(b"s")
+    _a, b = resolve_pair_files(tmp_path)
+    assert b.name == "rev_b_scanned.pdf"
+
+
+def test_returns_none_for_missing_or_incomplete_pair(tmp_path):
+    assert resolve_pair_files(tmp_path / "does_not_exist") is None
+    (tmp_path / "rev_a.pdf").write_bytes(b"a")  # no rev_b at all
+    assert resolve_pair_files(tmp_path) is None
+
+
+def test_every_shipped_sample_pair_resolves():
+    """Guards the actual repo layout: if a pair stops resolving, the eval silently scores it as a
+    total miss rather than failing, so assert on the real directories."""
+    samples = REPO_ROOT / "data" / "samples"
+    pairs = sorted(p for p in samples.glob("pair_*") if p.is_dir())
+    if not pairs:
+        pytest.skip("samples not synthesized")
+    for p in pairs:
+        assert resolve_pair_files(p) is not None, f"{p.name} no longer resolves"
 
 
 def test_offline_llm_complete_answers_yes_for_sufficiency_probe():

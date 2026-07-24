@@ -4,9 +4,16 @@
 validity — both pure code, byte-stable) vs. a stored baseline, using `eval.regression_thresholds`.
 Model-graded metrics (faithfulness, relevancy, context P/R, citation support) are **never gating**:
 they're reported as mean +/- stdev over `eval.judge.n_samples` samples so judge/temp-0
-nondeterminism can never fire a false regression. The scorecard's gated sections are byte-stable
-across runs — floats rounded to 6dp, dict keys sorted at write time, and the run timestamp lives in
-a separate non-gated `meta` field, never inside `deterministic`.
+nondeterminism can never fire a false regression. Floats are rounded to 6dp, dict keys are sorted at
+write time, and the run timestamp lives in a separate non-gated `meta` field, never inside
+`deterministic`.
+
+Byte-stability caveat: the *quality* metrics in `deterministic` (`delta_f1_test`,
+`citation_validity`) are pure code and byte-identical run to run. `latency_p95_ms` and
+`cost_usd_per_request` are not — they are wall-clock/usage measurements that move with the machine
+(observed ~138-145ms across back-to-back runs here). They are gated anyway because a real
+performance regression is worth catching, but with deliberately loose thresholds
+(`eval.regression_thresholds`) sized to absorb that jitter rather than fire on it.
 
 Predictions (`delta_pred_by_pair`, `chat_preds`, `retrieved`) are dependency-injected: pass them
 explicitly for a deterministic, network-free run (what the test suite does), or omit them to run
@@ -94,15 +101,40 @@ def _multi_sample_chat_score(preds: list[ChatAnswer], gold: list[QAGold], judge:
     }
 
 
-def _compute_delta_pred_live(cfg, pair_ids: set[str]) -> dict[str, list[Change]]:
-    """Live path: ingest each pair's rev_a/rev_b PDFs from data/samples/ and compute the real
-    Delta. Skips a pair gracefully (rather than crashing the whole eval run) if its source files
-    aren't the plain rev_a.pdf/rev_b.pdf naming (e.g. the scanned/DXF pairs use different names).
+# Which rev-B variant to evaluate, most-preferred first. `pair_03_scanned` ships both a scanned and
+# a native rev B; the scanned one is the point of that pair (rev_b_native.pdf is the OCR reference),
+# so it must win — evaluating the native variant would quietly skip the whole OCR path.
+_REV_B_PREFERENCE = ("rev_b_scanned", "rev_b", "rev_b_native")
 
-    section-11 fix: wraps each pair in `tracing.start_request`/`stage` (the same pattern cli.py's
-    `_ingest_and_delta` uses) so this run's own `traces/*.json` files exist for `compute_budget_stats`
-    to read. Without this, `latency_p95_ms`/`cost_usd_per_request` in the `deterministic` block were
-    silently 0.0 on any environment with no leftover trace files from a prior `make demo`/`run`."""
+
+def resolve_pair_files(pair_dir: Path) -> tuple[Path, Path] | None:
+    """Return (rev_a, rev_b) for a sample pair, or None if the pair isn't on disk.
+
+    Pairs are not uniformly named: `pair_05_dxf` is `.dxf`, `pair_03_scanned`'s rev B is
+    `rev_b_scanned.pdf`. An earlier version hardcoded `rev_a.pdf`/`rev_b.pdf` and silently
+    `continue`d on anything else, so the scanned and DXF pairs — 8 of the 12 held-out gold changes —
+    were scored as total misses against zero predictions, making the headline `delta_f1_test`
+    largely a measure of this function's own naming assumption.
+    """
+    if not pair_dir.is_dir():
+        return None
+    rev_a = sorted(pair_dir.glob("rev_a.*"))
+    if not rev_a:
+        return None
+    for stem in _REV_B_PREFERENCE:
+        matches = sorted(pair_dir.glob(f"{stem}.*"))
+        if matches:
+            return rev_a[0], matches[0]
+    return None
+
+
+def _compute_delta_pred_live(cfg, pair_ids: set[str]) -> dict[str, list[Change]]:
+    """Live path: ingest each pair's rev A/rev B from data/samples/ and compute the real Delta.
+
+    Wraps each pair in `tracing.start_request`/`stage` (the same pattern cli.py's `_ingest_and_delta`
+    uses) so this run's own `traces/*.json` files exist for `compute_budget_stats` to read. Without
+    that, `latency_p95_ms`/`cost_usd_per_request` in the `deterministic` block were silently 0.0 on
+    any environment with no leftover trace files from a prior `make demo`/`run`."""
     from delta_chat.delta.engine import compute_delta
     from delta_chat.ingest import base as ingest_base
     from delta_chat.observability import tracing
@@ -110,15 +142,16 @@ def _compute_delta_pred_live(cfg, pair_ids: set[str]) -> dict[str, list[Change]]
     samples_dir = _REPO_ROOT / "data" / "samples"
     out: dict[str, list[Change]] = {}
     for pair_id in pair_ids:
-        rev_a = samples_dir / pair_id / "rev_a.pdf"
-        rev_b = samples_dir / pair_id / "rev_b.pdf"
-        if not rev_a.exists() or not rev_b.exists():
+        resolved = resolve_pair_files(samples_dir / pair_id)
+        if resolved is None:
             continue
+        rev_a, rev_b = resolved
         tr = tracing.start_request({"pair_id": pair_id, "command": "eval.delta"}, cfg=cfg)
         try:
             with tracing.stage("ingest"):
-                doc_a = ingest_base.parse(rev_a.read_bytes(), f"{pair_id}:A", source_rev="A", cfg=cfg)
-                doc_b = ingest_base.parse(rev_b.read_bytes(), f"{pair_id}:B", source_rev="B", cfg=cfg)
+                # filename is load-bearing: DXF/DWG routing keys off the extension.
+                doc_a = ingest_base.parse(rev_a.read_bytes(), f"{pair_id}:A", rev_a.name, source_rev="A", cfg=cfg)
+                doc_b = ingest_base.parse(rev_b.read_bytes(), f"{pair_id}:B", rev_b.name, source_rev="B", cfg=cfg)
             with tracing.stage("delta"):
                 out[pair_id] = compute_delta(doc_a, doc_b, cfg).changes
         finally:
@@ -151,13 +184,13 @@ def _compute_chat_preds_live(
 
     for g in chat_gold:
         if g.pair_id not in index_cache:
-            rev_a = samples_dir / g.pair_id / "rev_a.pdf"
-            rev_b = samples_dir / g.pair_id / "rev_b.pdf"
-            if not rev_a.exists() or not rev_b.exists():
+            resolved = resolve_pair_files(samples_dir / g.pair_id)
+            if resolved is None:
                 index_cache[g.pair_id] = None
             else:
-                doc_a = ingest_base.parse(rev_a.read_bytes(), f"{g.pair_id}:A", source_rev="A", cfg=cfg)
-                doc_b = ingest_base.parse(rev_b.read_bytes(), f"{g.pair_id}:B", source_rev="B", cfg=cfg)
+                rev_a, rev_b = resolved
+                doc_a = ingest_base.parse(rev_a.read_bytes(), f"{g.pair_id}:A", rev_a.name, source_rev="A", cfg=cfg)
+                doc_b = ingest_base.parse(rev_b.read_bytes(), f"{g.pair_id}:B", rev_b.name, source_rev="B", cfg=cfg)
                 delta = delta_pred_by_pair.get(g.pair_id) or compute_delta(doc_a, doc_b, cfg).changes
                 from delta_chat.canonical.model import Delta as _Delta
                 index_cache[g.pair_id] = build_index(doc_a, doc_b, _Delta(pid_a="A", pid_b="B", changes=delta), cfg)
@@ -194,6 +227,7 @@ def build_scorecard(
     retrieved: dict[str, list[str]],
     dataset_paths: list[Path],
     trace_files: list[str | Path] | None = None,
+    ocr: dict | None = None,
 ) -> dict:
     """Pure scorecard builder — no I/O beyond hashing the dataset files, reading `trace_files`,
     and calling the metric functions. Segmented by pair/format/hard_slice inside `delta`; never a
@@ -234,6 +268,9 @@ def build_scorecard(
         "delta": {"test": _delta_score_dict(delta_test), "train": _delta_score_dict(delta_train)},
         "chat": chat_block,
         "retrieval": retrieval_block,
+        # Reported, never gated: OCR error depends on the installed Tesseract build, so gating it
+        # would fail CI on an environment upgrade instead of on a real regression.
+        "ocr": ocr,
         "deterministic": deterministic,
     }
     return _round_floats(scorecard)
@@ -265,6 +302,29 @@ def check_regression(scorecard: dict, baseline: dict | None, thresholds: dict) -
                 f"({direction} {change:.4f} > threshold {threshold})"
             )
     return problems
+
+
+def _score_ocr_samples(cfg) -> dict | None:
+    """Score the OCR path against every sample pair that ships an `ocr_truth.txt` reference.
+
+    Best-effort: returns None if no truth fixture exists or Tesseract isn't installed, so a machine
+    without the OCR binary still gets a full scorecard for everything else rather than a hard crash.
+    """
+    from .ocr_metrics import score_ocr
+
+    out: dict[str, dict] = {}
+    for truth_path in sorted((_REPO_ROOT / "data" / "samples").glob("*/ocr_truth.txt")):
+        pair_dir = truth_path.parent
+        scanned = sorted(pair_dir.glob("rev_b_scanned.*")) or sorted(pair_dir.glob("rev_a_scanned.*"))
+        if not scanned:
+            continue
+        try:
+            out[pair_dir.name] = score_ocr(
+                scanned[0].read_bytes(), truth_path.read_text(encoding="utf-8"), cfg
+            )
+        except Exception as exc:  # missing tesseract binary, unreadable page, ...
+            out[pair_dir.name] = {"error": f"{type(exc).__name__}: {exc}"}
+    return out or None
 
 
 def run_eval(
@@ -314,7 +374,7 @@ def run_eval(
         delta_pred_by_pair=delta_pred_by_pair, delta_gold=delta_gold,
         chat_preds=chat_preds, chat_gold=chat_gold, judge=judge,
         retrieved=retrieved, dataset_paths=[delta_gold_path, qa_gold_path],
-        trace_files=trace_files,
+        trace_files=trace_files, ocr=_score_ocr_samples(cfg),
     )
     scorecard["meta"] = {"generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}
 

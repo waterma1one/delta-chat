@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 import structlog
@@ -126,3 +127,30 @@ def test_run_in_context_propagates_request_id_into_worker_thread(cfg):
         got = ex.submit(wrapped).result()
     assert got == tr.request_id
     tr.finish()
+
+
+def test_trace_write_failure_is_logged_but_never_raises(tmp_path, monkeypatch, capsys):
+    """Regression: an unwritable traces/ dir propagated out of the API middleware as a 500 and
+    skipped the context cleanup. Observability must not take down the request it observes."""
+    from delta_chat.config import Config, load_config
+    from delta_chat.observability import tracing
+
+    cfg = Config({**load_config().data, "obs": {**load_config().data["obs"],
+                                                "trace_dir": str(tmp_path / "traces"),
+                                                "otlp_enabled": False}})
+
+    def _boom(*a, **k):
+        raise OSError("disk on fire")
+
+    monkeypatch.setattr(Path, "write_text", _boom)
+
+    tr = tracing.start_request({"command": "test"}, cfg=cfg)
+    with tracing.stage("delta"):
+        pass
+    tr.finish()  # must not raise
+
+    # the failure is visible, not swallowed silently
+    captured = capsys.readouterr()
+    assert "trace.write_failed" in (captured.out + captured.err)
+    # and the request contextvar was still cleaned up despite the failure
+    assert tracing.current_trace() is None

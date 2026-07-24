@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from ..canonical.model import Document
 from ..chat.answer import answer
 from ..chat.index import build_index
+from ..chat.llm import LlmUnavailableError
 from ..config import Config, default_config_path, load_config
 from ..delta.engine import compute_delta
 from ..delta.report import render_report
@@ -89,6 +90,23 @@ def _unknown_format(exc: ingest_base.UnknownFormatError, *pids: str) -> HTTPExce
     # The underlying message echoes raw file magic bytes read from disk — don't return that either.
     _log.warning("unknown_format", pids=pids, error=str(exc))
     return HTTPException(status_code=400, detail=f"unrecognized or unsupported document format for pid(s): {list(pids)!r}")
+
+
+def _llm_unavailable(exc: Exception) -> HTTPException:
+    """No usable LLM provider is a deployment/config problem, not a server fault.
+
+    Returning 500 here made a keyless deployment look broken: ingest/delta/retrieval all work
+    without a key, and only answer *generation* needs one, so the UI should be able to say
+    "configure a key" rather than surfacing an opaque HTTP 500. 503 + a fixed, non-echoing message
+    (the same info-disclosure convention as the helpers above).
+    """
+    _log.warning("llm_unavailable", error=str(exc))
+    return HTTPException(
+        status_code=503,
+        detail="grounded chat is unavailable: no LLM provider is configured on the server "
+               "(set ANTHROPIC_API_KEY, OPENAI_API_KEY, or LOCAL_LLM_BASE_URL). "
+               "Ingest, delta and the delta report do not require a key.",
+    )
 
 
 def _delta_id(pid_a: str, pid_b: str) -> str:
@@ -224,7 +242,10 @@ def create_app(cfg: Config | None = None) -> FastAPI:
             index = build_index(entry["doc_a"], entry["doc_b"], entry["delta"], cfg)
             # answer() may call the LLM (network); offload so a slow provider never blocks the loop.
             # Refusal is a normal 200 with state="Rejected" — never an HTTP error (never raised here).
-            result = await run_sync_ctx(answer, req.query, index, cfg)
+            try:
+                result = await run_sync_ctx(answer, req.query, index, cfg)
+            except LlmUnavailableError as exc:
+                raise _llm_unavailable(exc) from exc
         return dataclasses.asdict(result)
 
     @app.get("/markup")

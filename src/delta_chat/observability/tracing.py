@@ -196,21 +196,34 @@ class RequestTrace:
         return d
 
     def finish(self) -> Path:
-        """Write the JSON trace file unconditionally and clear the request context."""
+        """Write the JSON trace file and clear the request context.
+
+        A failed trace write is logged and then swallowed, deliberately: observability must not be
+        able to take down the request it is observing. Previously an unwritable ``traces/`` dir
+        propagated out of the API middleware as a 500 *and* skipped the context cleanup below,
+        leaking the request contextvar into the next request on that worker. The failure is still
+        visible — it is logged at error level, carrying the request id — it just isn't fatal.
+        """
+        path = self.trace_dir() / f"{self.request_id}.json"
         if self._finished:
-            return self.trace_dir() / f"{self.request_id}.json"
+            return path
         self._finished = True
-        d = self.trace_dir()
-        d.mkdir(parents=True, exist_ok=True)
-        path = d / f"{self.request_id}.json"
-        path.write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
-        _logging.clear_request_context()
-        if self._current_token is not None:
-            try:
-                _current.reset(self._current_token)
-            except (ValueError, LookupError):
-                # token created in a different context (e.g. finished on another task) — best effort.
-                _current.set(None)
+        try:
+            d = self.trace_dir()
+            d.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
+        except Exception as exc:
+            self._log.error(
+                "trace.write_failed", path=str(path), type=type(exc).__name__, message=str(exc)
+            )
+        finally:
+            _logging.clear_request_context()
+            if self._current_token is not None:
+                try:
+                    _current.reset(self._current_token)
+                except (ValueError, LookupError):
+                    # token created in a different context (e.g. finished on another task) — best effort.
+                    _current.set(None)
         return path
 
     def __enter__(self) -> "RequestTrace":
@@ -252,6 +265,17 @@ def stage(name: str):
         return
     with tr.stage(name) as rec:
         yield rec
+
+
+def annotate_stage(**attrs: Any) -> None:
+    """Attach detail to the current stage (no-op when nothing is being traced).
+
+    Without this, stage records carried only a name/duration/status, so a trace told you a run took
+    N ms but not what it actually produced (how many changes, how many items ingested).
+    """
+    rec = _current_stage.get()
+    if rec is not None:
+        rec.attrs.update(attrs)
 
 
 def mark_degraded(reason: str, **attrs: Any) -> None:

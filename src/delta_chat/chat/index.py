@@ -21,6 +21,10 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9\-\./]*")
 _DELTA_KEYWORDS = (
     "what changed", "what's changed", "whats changed", "difference", "differences",
     "between rev", "changed", "changes", "change", "delta", "added", "removed", "modified",
+    # surface forms a user actually types for the four change types. Without these, e.g. "Which
+    # note was deleted?" scored as a pure content question (on "which") and never reached the
+    # delta pool that holds its answer.
+    "deleted", "delete", "add", "remove", "moved", "move", "renumbered", "revised", "new in rev",
 )
 _DOC_KEYWORDS = ("what is", "which", "setpoint", "value of", "spec", "rating", "how many", "where is")
 

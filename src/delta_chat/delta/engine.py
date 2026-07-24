@@ -11,6 +11,8 @@ from __future__ import annotations
 from typing import Callable, Sequence
 
 from ..canonical.model import Change, Delta, Document
+from ..observability import metrics as _metrics
+from ..observability import tracing as _tracing
 from .align import SimWeights, align
 from .classify import assign_change_sets, classify
 from .notes import diff_notes
@@ -66,6 +68,12 @@ def compute_delta(
     counts: dict[str, int] = {}
     for ch in changes:
         counts[ch.type] = counts.get(ch.type, 0) + 1
+
+    # Surface the delta size on the Prometheus counter and on the active trace's `delta` stage.
+    # "delta counts" is a required metric; the counter existed but nothing ever incremented it, so
+    # `delta_chat_delta_changes_total` sat at 0 no matter how many changes a run produced.
+    _metrics.observe_delta_count(len(changes))
+    _tracing.annotate_stage(change_count=len(changes), counts_by_type=counts)
 
     return Delta(
         pid_a=doc_a.pid,

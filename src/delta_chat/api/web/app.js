@@ -46,7 +46,16 @@ chatForm.addEventListener("submit", async (evt) => {
     body: JSON.stringify({ pid_a: currentPids.pid_a, pid_b: currentPids.pid_b, query }),
   });
   if (!resp.ok) {
-    appendMessage("system", `Chat request failed: HTTP ${resp.status}`);
+    // Surface the server's `detail` when there is one: the API deliberately returns actionable
+    // messages (e.g. 503 "no LLM provider is configured — set ANTHROPIC_API_KEY..."), and showing
+    // only the bare status code threw that guidance away and made a config problem look like a bug.
+    let detail = "";
+    try {
+      detail = (await resp.json()).detail || "";
+    } catch (_) {
+      /* non-JSON error body — fall back to the status line alone */
+    }
+    appendMessage("system", detail || `Chat request failed: HTTP ${resp.status}`);
     return;
   }
   const answer = await resp.json();

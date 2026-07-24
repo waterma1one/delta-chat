@@ -35,6 +35,15 @@ except Exception:  # pragma: no cover - litellm is a hard dependency; guard is d
     _RETRYABLE = (TimeoutError, ConnectionError)
 
 
+class LlmUnavailableError(RuntimeError):
+    """No usable LLM provider is configured.
+
+    A distinct type (rather than a bare RuntimeError) so callers — notably the API layer — can
+    map *this* condition to a 503 "configure a key" response without also swallowing unrelated
+    RuntimeErrors raised from inside a provider call.
+    """
+
+
 def select_provider(cfg=None) -> str:
     """Pick a provider by config override, else by whichever API key env var is present.
 
@@ -51,7 +60,7 @@ def select_provider(cfg=None) -> str:
         return "openai"
     if os.environ.get("LOCAL_LLM_BASE_URL"):
         return "local"
-    raise RuntimeError(
+    raise LlmUnavailableError(
         "no LLM provider configured: set ANTHROPIC_API_KEY, OPENAI_API_KEY, or LOCAL_LLM_BASE_URL"
     )
 
