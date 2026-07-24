@@ -22,7 +22,7 @@ _log = structlog.get_logger("delta_chat.canonical")
 Region = Literal["title", "revtable", "notes", "drawing", "unknown"]
 ItemType = Literal["text", "tag", "line_number", "note", "dimension", "table_cell", "symbol"]
 ChangeType = Literal["added", "removed", "modified", "moved", "renumbered"]
-SourceSpace = Literal["pdf_points", "image_px", "dxf_wcs"]
+SourceSpace = Literal["pdf_points", "pdf_topleft", "image_px", "dxf_wcs"]
 
 
 def _clamp01(v: float) -> float:
@@ -152,6 +152,10 @@ def normalize_bbox(
         nx0, nx1 = x0 / pw, x1 / pw
         # bottom-left -> top-left: top edge (larger PDF y) maps to smaller normalized y.
         ny0, ny1 = 1.0 - (max(y0, y1) / ph), 1.0 - (min(y0, y1) / ph)
+    elif source_space == "pdf_topleft":
+        # PyMuPDF page space is already top-left origin in points -> straight divide (no flip). This is
+        # the variant native ingestion uses so its boxes align with image_px (also top-left).
+        nx0, ny0, nx1, ny1 = x0 / pw, y0 / ph, x1 / pw, y1 / ph
     elif source_space == "image_px":
         if dpi is None or dpi <= 0:
             raise ValueError("image_px requires a positive dpi")

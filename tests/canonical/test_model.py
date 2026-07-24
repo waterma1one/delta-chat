@@ -41,6 +41,14 @@ def test_normalize_pdf_points_flips_y_from_bottom_left():
     assert b.y0 == pytest.approx(0.2)
 
 
+def test_normalize_pdf_topleft_no_flip():
+    # PyMuPDF top-left space: straight divide, no y-flip.
+    b = normalize_bbox((100, 100, 200, 150), "pdf_topleft", (1000, 1000))
+    assert _approx(b, (0.1, 0.1, 0.2, 0.15))
+    with pytest.raises(ValueError):
+        normalize_bbox((0, 0, 1, 1), "pdf_topleft", (0, 100))
+
+
 def test_normalize_image_px_roundtrips_to_native_normalized():
     page_pts = (612.0, 792.0)
     dpi = 200.0
