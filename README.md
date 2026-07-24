@@ -43,7 +43,7 @@ cp .env.example .env          # fill in ANTHROPIC_API_KEY or OPENAI_API_KEY for 
 | `make eval` | Writes `scorecard.json` + `budget.md`, diffs `eval/baseline_scorecard.json`, exits non-zero on a deterministic regression. |
 | `make markup` | Annotated PDF overlay of the delta (bonus). |
 | `make test` | Full deterministic + mocked-LLM test suite. |
-| `make up` | App only, via Docker (`GET /metrics`, `/healthz`, and the chat UI at `:8000`). |
+| `make up` | App only, via Docker (`GET /metrics`, `/healthz`, and the chat UI at `:8000/ui`). |
 | `make up-obs` | App + Phoenix (`:6006`) + Prometheus (`:9090`) + Grafana (`:3000`) — opt-in, `--profile obs`. |
 
 Override the sample pair with `PID_A=... PID_B=... make demo` (accepts `file://` URIs or bare
