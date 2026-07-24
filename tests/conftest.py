@@ -27,3 +27,14 @@ def export_pdf() -> Path:
     if not p.exists():  # pragma: no cover - environment guard
         pytest.skip(f"sample PDF missing: {p}")
     return p
+
+
+@pytest.fixture
+def trace_cfg(tmp_path, monkeypatch):
+    """Config pointed at a temp trace dir with OTLP off — reusable by §07/§08/§10 tracing tests."""
+    from delta_chat.config import load_config
+
+    monkeypatch.setenv("DELTA_CHAT__OBS__TRACE_DIR", str(tmp_path / "traces"))
+    monkeypatch.setenv("DELTA_CHAT__OBS__OTLP_ENABLED", "false")
+    return load_config()
+
