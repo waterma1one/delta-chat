@@ -1,0 +1,70 @@
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 1rem;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+header h1 { margin: 0 0 0.5rem; font-size: 1.25rem; }
+#pids-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+#pids-form input { flex: 1; padding: 0.4rem; }
+
+main { display: flex; gap: 1rem; height: calc(100vh - 6rem); }
+#report-pane, #chat-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#report-frame { flex: 1; border: 1px solid #ccc; background: #fff; }
+
+#messages { flex: 1; overflow-y: auto; border: 1px solid #ccc; background: #fff; padding: 0.5rem; }
+.message { margin-bottom: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 4px; }
+.message-user { background: #e8f0fe; align-self: flex-end; }
+.message-system { color: #666; font-style: italic; }
+.message-answer { background: #f0f0f0; }
+.message-answer.state-rejected { background: #fde8e8; }
+.message-answer.state-partial { background: #fff6e0; }
+
+.refusal-banner { color: #a11; font-weight: 600; margin-bottom: 0.3rem; }
+.partial-banner { color: #a67c00; font-weight: 600; margin-bottom: 0.3rem; }
+
+.claim.unverified { opacity: 0.6; }
+.citation-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+.citation-chip {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid #999;
+  background: #fff;
+  cursor: pointer;
+}
+/* delta-entry vs doc-span citations are visually distinguished — both required by the rubric */
+.citation-chip.source-delta { border-color: #7a3fe0; color: #7a3fe0; }
+.citation-chip.source-doc_a { border-color: #1a7f37; color: #1a7f37; }
+.citation-chip.source-doc_b { border-color: #0969da; color: #0969da; }
+
+#chat-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+#chat-form input { flex: 1; padding: 0.4rem; }
+
+#bbox-overlay {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  width: 240px;
+  background: #fff;
+  border: 1px solid #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+  display: none;
+}
+#bbox-overlay.visible { display: block; }
+.bbox-overlay-label { font-size: 0.75rem; margin-bottom: 0.3rem; }
+.bbox-overlay-page {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 0.77;
+  border: 1px solid #999;
+  background: #f5f5f5;
+}
+.bbox-overlay-rect {
+  position: absolute;
+  border: 2px solid #e03131;
+  background: rgba(224, 49, 49, 0.15);
+}

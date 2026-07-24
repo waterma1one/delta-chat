@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>delta-chat</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>delta-chat</h1>
+    <form id="pids-form">
+      <input id="pid-a" placeholder="pid_a" required />
+      <input id="pid-b" placeholder="pid_b" required />
+      <button type="submit">Load pair</button>
+    </form>
+  </header>
+
+  <main>
+    <section id="report-pane">
+      <h2>Delta report</h2>
+      <iframe id="report-frame" title="Delta report"></iframe>
+    </section>
+
+    <section id="chat-pane">
+      <h2>Grounded chat</h2>
+      <div id="messages"></div>
+      <form id="chat-form">
+        <input id="chat-query" placeholder="Ask about the revision..." autocomplete="off" />
+        <button type="submit">Ask</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
