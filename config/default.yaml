@@ -26,8 +26,15 @@ delta:
   change_set_radius: 0.05         # centroid distance (fraction of page diagonal) for change-set clustering
   notes:
     row_tol: 0.01                 # normalized page-height fraction: words within this y0 distance cluster into one note line
-    semantic_low: null            # calibrated on train split (§05/§10) — not hardcoded
-    semantic_high: null
+    # section-11: no §05/§10 train-split calibration script exists in this repo, and cli.py never
+    # passes an `llm` callable into compute_delta, so leaving these null makes the zero-infra
+    # acceptance command (`make demo`) crash on any real note reword. Collapsed to a single cutoff
+    # (low == high) so the ambiguous LLM-gated band is empty by construction: cos >= 0.90 is
+    # cosmetic (skipped), cos < 0.90 is reported as a generic reworded note — deterministic, no
+    # LLM call. Documented as a deliberate cut in README (real calibration would recover nuance
+    # between "cosmetic" and "meaningful" that this fixed cutoff can't distinguish).
+    semantic_low: 0.90
+    semantic_high: 0.90
 
 tagging:
   # ISA-5.1 house standards vary → keep configurable.
@@ -91,6 +98,12 @@ eval:
   regression_thresholds:
     delta_f1_test: 0.02
     citation_validity: 0.0
+    # section-11: latency/cost had no threshold configured, so despite being byte-stable +
+    # computed (see eval/run_eval.py's `deterministic` block), they structurally never gated —
+    # `check_regression` skips any key absent from this map. Generous margins since wall-clock
+    # latency is machine-dependent noise, not a metric to gate tightly on.
+    latency_p95_ms: 2000.0
+    cost_usd_per_request: 0.01
   budget:
     sheets_extrapolation: 500
 

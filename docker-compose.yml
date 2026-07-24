@@ -1,0 +1,36 @@
+# App runs standalone by default (`docker compose up`). Phoenix + Prometheus + Grafana live behind
+# the `obs` profile and are never on the critical path — `docker compose --profile obs up` adds the
+# live observability UIs on top of the same app.
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env        # keys from env only; see .env.example. Optional: app runs without it
+        required: false    # (ingest/delta/eval work with no key; grounded chat needs one).
+    volumes:
+      - ./traces:/app/traces        # JSON trace files persist to host for inspection
+    # No dependency on the obs services below — app must run standalone.
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    profiles: ["obs"]
+    ports:
+      - "6006:6006"     # UI
+      - "4317:4317"     # OTLP gRPC receiver — matches obs.otlp_endpoint's default port
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["obs"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["obs"]
+    ports:
+      - "3000:3000"
+    depends_on: ["prometheus"]

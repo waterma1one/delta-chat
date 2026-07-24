@@ -13,16 +13,24 @@ explicitly for a deterministic, network-free run (what the test suite does), or 
 the real pipeline (ingest -> compute_delta -> chat.answer.answer against `data/samples/`), which
 does hit the LLM — this "live" path is not exercised by the default test suite, matching the same
 convention used for other live-network paths elsewhere in this codebase.
+
+`python -m eval.run_eval --offline` (section-11: `make eval` / the CI deterministic gate) runs that
+same real pipeline — real ingest, real delta, real BM25 retrieval — but with `delta_chat.chat.llm.complete`
+monkeypatched to `_offline_llm_complete` and a `judge=_OfflineJudge()`, so no network call and no
+API key are required. This only changes what backs the `chat`/model-graded block; the `deterministic`
+block (delta P/R/F1, citation validity, latency, cost) that CI actually gates is unaffected either way.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import statistics
 from pathlib import Path
+from unittest.mock import patch
 
 from delta_chat.canonical.model import Change
-from delta_chat.chat.types import ChatAnswer
+from delta_chat.chat.types import ChatAnswer, LlmResult
 from delta_chat.config import default_config_path, load_config
 
 from .chat_metrics import Judge, score_chat
@@ -89,9 +97,15 @@ def _multi_sample_chat_score(preds: list[ChatAnswer], gold: list[QAGold], judge:
 def _compute_delta_pred_live(cfg, pair_ids: set[str]) -> dict[str, list[Change]]:
     """Live path: ingest each pair's rev_a/rev_b PDFs from data/samples/ and compute the real
     Delta. Skips a pair gracefully (rather than crashing the whole eval run) if its source files
-    aren't the plain rev_a.pdf/rev_b.pdf naming (e.g. the scanned/DXF pairs use different names)."""
+    aren't the plain rev_a.pdf/rev_b.pdf naming (e.g. the scanned/DXF pairs use different names).
+
+    section-11 fix: wraps each pair in `tracing.start_request`/`stage` (the same pattern cli.py's
+    `_ingest_and_delta` uses) so this run's own `traces/*.json` files exist for `compute_budget_stats`
+    to read. Without this, `latency_p95_ms`/`cost_usd_per_request` in the `deterministic` block were
+    silently 0.0 on any environment with no leftover trace files from a prior `make demo`/`run`."""
     from delta_chat.delta.engine import compute_delta
     from delta_chat.ingest import base as ingest_base
+    from delta_chat.observability import tracing
 
     samples_dir = _REPO_ROOT / "data" / "samples"
     out: dict[str, list[Change]] = {}
@@ -100,9 +114,15 @@ def _compute_delta_pred_live(cfg, pair_ids: set[str]) -> dict[str, list[Change]]
         rev_b = samples_dir / pair_id / "rev_b.pdf"
         if not rev_a.exists() or not rev_b.exists():
             continue
-        doc_a = ingest_base.parse(rev_a.read_bytes(), f"{pair_id}:A", source_rev="A", cfg=cfg)
-        doc_b = ingest_base.parse(rev_b.read_bytes(), f"{pair_id}:B", source_rev="B", cfg=cfg)
-        out[pair_id] = compute_delta(doc_a, doc_b, cfg).changes
+        tr = tracing.start_request({"pair_id": pair_id, "command": "eval.delta"}, cfg=cfg)
+        try:
+            with tracing.stage("ingest"):
+                doc_a = ingest_base.parse(rev_a.read_bytes(), f"{pair_id}:A", source_rev="A", cfg=cfg)
+                doc_b = ingest_base.parse(rev_b.read_bytes(), f"{pair_id}:B", source_rev="B", cfg=cfg)
+            with tracing.stage("delta"):
+                out[pair_id] = compute_delta(doc_a, doc_b, cfg).changes
+        finally:
+            tr.finish()
     return out
 
 
@@ -111,11 +131,17 @@ def _compute_chat_preds_live(
 ) -> tuple[list[ChatAnswer], dict[str, list[str]]]:
     """Live path: for each QA gold question, ingest its pair's docs, build a ChatIndex, and run
     the real grounded-chat pipeline (hits the LLM). Returns (preds, retrieved) where `retrieved`
-    maps question -> the citation_ids chat.index.retrieve returned, for the retrieval metrics."""
+    maps question -> the citation_ids chat.index.retrieve returned, for the retrieval metrics.
+
+    section-11 fix: each question's retrieve+answer call runs inside `tracing.start_request` (same
+    reasoning as `_compute_delta_pred_live` above) — `chat.index.retrieve`/`chat.answer.answer`
+    already self-tag "retrieval"/"answer" stages internally, they just need an active request to
+    attach to for a trace file to actually get written."""
     from delta_chat.chat.answer import answer
     from delta_chat.chat.index import build_index, retrieve
     from delta_chat.delta.engine import compute_delta
     from delta_chat.ingest import base as ingest_base
+    from delta_chat.observability import tracing
 
     samples_dir = _REPO_ROOT / "data" / "samples"
     index_cache: dict[str, object] = {}
@@ -137,9 +163,23 @@ def _compute_chat_preds_live(
                 index_cache[g.pair_id] = build_index(doc_a, doc_b, _Delta(pid_a="A", pid_b="B", changes=delta), cfg)
         index = index_cache[g.pair_id]
         if index is None:
+            # section-11 fix: `score_chat` requires preds/gold aligned 1:1 by question (it raises
+            # otherwise), so a pair whose source files this live path can't ingest (e.g. pair_05_dxf,
+            # which only has .dxf, not rev_a.pdf/rev_b.pdf) must still contribute a pred — honestly
+            # reported as unanswerable — rather than silently drop the gold question and desync the
+            # two lists.
+            retrieved[g.question] = []
+            preds.append(ChatAnswer(
+                state="Rejected", text="", claims=[], used_chunks=[],
+                refusal_reason=f"pair {g.pair_id!r} source files not available to this live eval path",
+            ))
             continue
-        retrieved[g.question] = [c.citation_id for c in retrieve(index, g.question, top_k, cfg)]
-        preds.append(answer(g.question, index, cfg))
+        tr = tracing.start_request({"question": g.question, "pair_id": g.pair_id, "command": "eval.chat"}, cfg=cfg)
+        try:
+            retrieved[g.question] = [c.citation_id for c in retrieve(index, g.question, top_k, cfg)]
+            preds.append(answer(g.question, index, cfg))
+        finally:
+            tr.finish()
     return preds, retrieved
 
 
@@ -295,19 +335,84 @@ def run_eval(
     return 1 if problems else 0
 
 
+_SOURCE_LINE = re.compile(r"\[([^\]]+)\]\s*([^\n]+)")
+
+
+def _offline_llm_complete(
+    messages: list[dict], *, model: str | None = None, response_format: dict | None = None,
+    documents: list[dict] | None = None, cfg=None,
+) -> LlmResult:
+    """Deterministic stand-in for `delta_chat.chat.llm.complete`, wired in by `--offline`. Mirrors
+    the fixture pattern in tests/chat/conftest.py's `_MockLlm`, but derives its answer from the
+    prompt content instead of a pre-queued response so it works for arbitrary QA-gold questions,
+    not a fixed test script. Dispatches on the same signal `chat/grounding.py`'s three call sites
+    already use to distinguish themselves (`documents` / `response_format` / neither) rather than
+    parsing prompt wording, so it stays correct if the prompts are reworded.
+
+    Not a stand-in for judgment quality: every claim it emits simply quotes its source chunk
+    verbatim, which is why `chat/answer.py`'s lexical-entailment check always passes. That's fine
+    here because `--offline` only backs the `chat`/model-graded scorecard block, which is never
+    CI-gated (see module docstring) — the gated `deterministic` block doesn't depend on this stub.
+    """
+    usage = {"input_tokens": 0, "output_tokens": 0}
+    if documents is not None:
+        # ground_anthropic_citations path: cite every supplied document verbatim.
+        blocks = [{"text": d["text"], "citations": [{"document_index": i}]} for i, d in enumerate(documents)]
+        return LlmResult(text="\n".join(d["text"] for d in documents), blocks=blocks, usage=usage,
+                          model=model or "offline", finish_reason="stop")
+    if response_format is not None:
+        # ground_json_schema path: one claim per listed source, quoting it verbatim so it entails.
+        user_content = messages[-1]["content"] if messages else ""
+        claims = [{"text": text.strip(), "citations": [cid]} for cid, text in _SOURCE_LINE.findall(user_content)]
+        payload = {
+            "answer_supported": bool(claims),
+            "claims": claims,
+            "insufficient_evidence": not claims,
+            "refusal_reason": None if claims else "offline stub: no sources retrieved",
+        }
+        return LlmResult(text=json.dumps(payload), blocks=None, usage=usage,
+                          model=model or "offline", finish_reason="stop")
+    # chat/grounding.py's sufficiency entailment probe: the normalized-margin gate in
+    # check_sufficiency() already filters most insufficient cases before this runs, so a fixed
+    # "yes" is a reasonable offline default rather than a coin flip.
+    return LlmResult(text="yes", blocks=None, usage={"input_tokens": 0, "output_tokens": 1},
+                      model=model or "offline", finish_reason="stop")
+
+
+class _OfflineJudge:
+    """Deterministic offline stand-in for the model-graded judge, used by `--offline`. Safe because
+    `check_regression` (the actual CI gate) only ever inspects the `deterministic` scorecard block,
+    never `chat`/model-graded fields — this cannot mask a real regression."""
+
+    def entails(self, claim_text: str, citation_id: str) -> bool:
+        return True
+
+    def relevancy(self, answer_text: str, question: str) -> float:
+        return 1.0
+
+
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - thin CLI wrapper
     import argparse
 
     parser = argparse.ArgumentParser(prog="eval.run_eval")
     parser.add_argument("--baseline", default=None)
     parser.add_argument("--out-dir", default=None)
+    parser.add_argument(
+        "--offline", action="store_true",
+        help="never call a live model (deterministic stubs for chat generation + judge); "
+             "used by `make eval` / the CI deterministic gate so neither needs an API key",
+    )
     args = parser.parse_args(argv)
+
+    cfg = load_config()
+
+    if args.offline:
+        with patch("delta_chat.chat.llm.complete", _offline_llm_complete):
+            return run_eval(cfg, baseline_path=args.baseline, out_dir=args.out_dir, judge=_OfflineJudge())
 
     from .judge import assert_cross_family
 
-    cfg = load_config()
     assert_cross_family(cfg)
-
     return run_eval(cfg, baseline_path=args.baseline, out_dir=args.out_dir, judge=_LiveJudge(cfg))
 
 

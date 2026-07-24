@@ -5,6 +5,9 @@
 traces/
 scorecard.json
 budget.md
+data/output/
+markup.pdf
+eval/output/
 
 # Generated sample pairs (regenerable via scripts/synth_samples.py). Keep provided source PDFs +
 # provenance tracked.
