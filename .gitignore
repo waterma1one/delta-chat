@@ -1,0 +1,28 @@
+# Secrets
+.env
+
+# Per-run artifacts embed document text + model answers — never commit
+traces/
+scorecard.json
+budget.md
+
+# Generated sample pairs (regenerable via scripts/synth_samples.py). Keep provided source PDFs +
+# provenance tracked.
+data/samples/**/*.pdf
+data/samples/**/*.dxf
+data/samples/**/*.png
+!data/samples/source/*.pdf
+!data/samples/source/*.dxf
+!data/samples/provenance.md
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
