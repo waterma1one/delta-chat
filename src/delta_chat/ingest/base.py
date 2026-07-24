@@ -74,6 +74,23 @@ def max_image_area_frac(data: bytes) -> float:
     return frac
 
 
+def vector_drawing_count(data: bytes) -> int:
+    """Total vector drawing paths across pages (lines, rects, curves from ``page.get_drawings()``).
+
+    A born-digital drawing carries real vector geometry; a scan is a flat raster with none. This is
+    what lets a native page keep its text layer even when it *also* has a full-page background
+    raster (an underlay, watermark, or scanned title-block): image-dominance alone would misroute
+    such a page to OCR and throw away its exact text.
+    """
+    import fitz
+
+    total = 0
+    with fitz.open(stream=data, filetype="pdf") as doc:
+        for page in doc:
+            total += len(page.get_drawings())
+    return total
+
+
 # --- registry ------------------------------------------------------------------------------------
 
 # adapter registry keyed by format name; populated by the adapters at import time via register().
@@ -107,20 +124,27 @@ def detect_format(data: bytes, filename: str | None, cfg: Config | None = None) 
     elif dwg_adapter is not None and dwg_adapter.detect(data, filename):
         return "dwg"
     if is_pdf:
-        # Native iff there is a real text layer AND the page is not dominated by a raster.
-        # Both signals are needed: a P&ID is mostly geometry so its word count is naturally tiny
-        # (thresholding on it alone sent every born-digital drawing through OCR), while a scan
-        # re-saved with its OCR layer has a high word count but still needs the scanned path.
+        # Native needs a real text layer (>= min_words). Beyond that, image-dominance alone is not
+        # enough to call something a scan: a born-digital drawing can legitimately carry a full-page
+        # background raster (underlay/watermark/scanned title-block) while still having a perfect
+        # vector+text layer. So a raster-dominated page is only treated as scanned when it ALSO has
+        # no vector geometry — the combination that actually characterises a flat scan. Vector paths
+        # present => keep it native and use its real text instead of re-OCR'ing it.
         min_words = int(cfg.get("ingest.native_min_words", 1))
         img_frac_max = float(cfg.get("ingest.scanned_image_area_frac", 0.80))
+        min_vectors = int(cfg.get("ingest.native_min_vectors", 1))
         try:
             words = native_word_count(data)
             img_frac = max_image_area_frac(data)
+            vectors = vector_drawing_count(data)
         except Exception as exc:  # corrupt/unreadable PDF -> traceable error
             raise UnknownFormatError(f"unreadable PDF ({exc})") from exc
-        if words >= min_words and img_frac < img_frac_max:
-            return "pdf_native"
-        return "pdf_scanned"
+        if words < min_words:
+            return "pdf_scanned"
+        raster_dominates = img_frac >= img_frac_max
+        if raster_dominates and vectors < min_vectors:
+            return "pdf_scanned"  # flat raster, no geometry, text is a baked-in OCR layer
+        return "pdf_native"
     raise UnknownFormatError(
         f"unrecognized format (filename={filename!r}, magic={data[:8]!r})"
     )

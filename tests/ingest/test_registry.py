@@ -33,8 +33,8 @@ def test_unknown_format_raises_clear_error():
 # --- native-vs-scanned probe (regression: a raw word-count threshold got all of these wrong) -----
 
 
-def _pdf(*, words: str | None = None, full_page_image: bool = False) -> bytes:
-    """Build a one-page PDF with an optional text layer and an optional page-covering raster."""
+def _pdf(*, words: str | None = None, full_page_image: bool = False, vectors: bool = False) -> bytes:
+    """Build a one-page PDF with an optional text layer, page-covering raster, and vector geometry."""
     import fitz
 
     doc = fitz.open()
@@ -43,6 +43,9 @@ def _pdf(*, words: str | None = None, full_page_image: bool = False) -> bytes:
         pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 200, 200))
         pix.clear_with(255)
         page.insert_image(page.rect, pixmap=pix)
+    if vectors:
+        page.draw_line((10, 10), (190, 10))
+        page.draw_rect(fitz.Rect(20, 20, 80, 80))
     if words:
         # lay the words out line by line so they all fit on the page and stay extractable
         # (a single long insert_text run overflows the page and silently clips most of them)
@@ -65,6 +68,16 @@ def test_sparse_native_pdf_is_native_not_scanned():
 
 def test_image_only_pdf_is_scanned():
     assert base.detect_format(_pdf(full_page_image=True), "scan.pdf") == "pdf_scanned"
+
+
+def test_native_drawing_with_full_page_background_raster_is_still_native():
+    """Regression: a born-digital drawing can carry a page-sized underlay/watermark/scanned
+    title-block AND a perfect vector+text layer. Image-dominance alone flipped it to pdf_scanned
+    and re-OCR'd exact text. Vector geometry keeps it native."""
+    data = _pdf(words="26-FV-9040 150mm SUCTION", full_page_image=True, vectors=True)
+    assert base.max_image_area_frac(data) >= 0.80  # raster does dominate the page
+    assert base.vector_drawing_count(data) >= 1     # but there is real geometry
+    assert base.detect_format(data, "native_with_underlay.pdf") == "pdf_native"
 
 
 def test_scan_with_embedded_ocr_text_layer_is_still_scanned():

@@ -123,14 +123,23 @@ scanned / DWG), and by the **hard slice** — never a single averaged headline n
 - **Chat**: faithfulness, answer relevancy, context precision/recall (model-graded, multi-sample
   averaged) plus bespoke, **pure-code** citation *validity* (does the id resolve?) and citation
   *support* (does the span actually entail the claim?), and abstention precision/recall over
-  answerable/unanswerable gold questions.
+  answerable/unanswerable gold questions. **Abstention caveat**: the sufficiency gate has two
+  stages — a cheap deterministic lexical pre-filter and an LLM entailment check. On this tiny,
+  sparse P&ID text no *lexical* threshold separates all answerable from all unanswerable questions
+  (empirically: driving false-abstention to 0 leaves abstention **recall at 0.67** — one
+  unanswerable question whose stray terms overlap a chunk slips the floor). The entailment stage is
+  what closes that gap, but it needs a real model, so **`make eval`'s default `--offline` run
+  reports the weaker deterministic-only abstention** (recall 0.67); the tradeoff is deliberate —
+  refusing the flagship demo question would be far worse than occasionally over-answering, and the
+  entailment backstop exists for deployments with a key.
 - **Retrieval**: Hit-Rate/Recall/MRR at multiple k, plus a cost/latency budget table
   (`budget.md`) extrapolated to a larger sheet count.
 - **OCR**: word- and character-error rate for the scanned path, scored against `ocr_truth.txt` (the
   exact token sequence of the native page before it was rasterized). Reported in the scorecard's
   `ocr` block, never gated — the number moves with the installed Tesseract build, so gating it would
-  fail CI on an environment upgrade rather than on a real regression. Currently **WER 38%,
-  CER 37%** on `pair_03_scanned`; see the failure taxonomy.
+  fail CI on an environment upgrade rather than on a real regression (on this machine's Tesseract it
+  is ~WER 0.38 / CER 0.37 on `pair_03_scanned` — read the live `ocr` block for the current run's
+  figure rather than trusting this prose); see the failure taxonomy.
 - **The judge is cross-family-enforced**: `eval.judge.model` is asserted at runtime to be a
   different model family than the answerer (`llm.model`) — a same-family judge can't credibly
   validate its own outputs — and prompts are order-swapped to counter position bias.
@@ -166,7 +175,8 @@ convention used elsewhere in this codebase for live-network paths (see `tests/te
 | Missed change | a real edit produces no `Change` | delta recall / false negative |
 | Mislabeled change type | a MOVED change classed as MODIFIED | type-confusion matrix |
 | Over-answered unanswerable | answers a question the sources can't support | abstention precision/recall |
-| OCR error on small text | tiny/dense scanned text misread | **measured: WER 38% / CER 37%** on `pair_03_scanned` (scorecard `ocr` block) |
+| OCR error on small text | tiny/dense scanned text misread | **measured** in the scorecard `ocr` block (~WER 0.38 / CER 0.37 on this machine's Tesseract; environment-dependent, so read the live figure) |
+| Abstention recall < 1.0 offline | an unanswerable question whose stray terms overlap a chunk ("flow rate on sheet 2") slips the deterministic floor | abstention P/R — the lexical gate can't separate all cases on this sparse text; the LLM entailment stage (key required) closes it, so offline recall is 0.67 |
 | **Multi-sheet change missed** | `pair_04_multisheet`'s sheet-3 edit produces no matching `Change` | delta recall — it is a real FN, visible as `pair:pair_04_multisheet F1=0.000` in the segmented scorecard |
 | **Judge agreement unmeasured** | `cohen_kappa()` is implemented and unit-tested but has never been run | no human-annotated label set exists in this repo — the judge is cross-family and order-swapped, but its agreement with a human is **unknown**, so model-graded numbers carry that caveat |
 | Spurious change (low precision) | delta precision is 0.48 at tau=0.5 — roughly half the reported changes are FPs | delta precision, per-segment; the dual-confidence fields (`match_conf`/`class_conf`) let a caller filter, but nothing filters by default |

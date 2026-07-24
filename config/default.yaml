@@ -63,7 +63,9 @@ ingest:
   # native-vs-scanned probe: needs BOTH a real text layer and a non-raster page. A word-count
   # threshold alone misclassified every born-digital P&ID (they carry <20 words) as a scan.
   native_min_words: 1             # >=N extractable words required to call a PDF born-digital
-  scanned_image_area_frac: 0.80   # a raster covering >= this fraction of a page => treat as a scan
+  scanned_image_area_frac: 0.80   # a raster covering >= this fraction of a page is scan-like...
+  native_min_vectors: 1           # ...but a page with >=N vector paths is still native (raster is
+                                  #    just a background underlay, not the content) -> keep its text
   vector_min_area: 1.0            # drop degenerate get_drawings() paths (pt^2)
   ocr_upscale: 1.75               # preprocess_for_ocr upscale factor (1.5-2x range)
   ocr_psm: 11                     # tesseract page-seg mode (sparse text)

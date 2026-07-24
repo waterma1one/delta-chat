@@ -102,8 +102,8 @@ def _multi_sample_chat_score(preds: list[ChatAnswer], gold: list[QAGold], judge:
 
 
 # Which rev-B variant to evaluate, most-preferred first. `pair_03_scanned` ships both a scanned and
-# a native rev B; the scanned one is the point of that pair (rev_b_native.pdf is the OCR reference),
-# so it must win — evaluating the native variant would quietly skip the whole OCR path.
+# a native rev B; the scanned one is the point of that pair (its rev_b_scanned.pdf is scored against
+# ocr_truth.txt), so it must win — evaluating the native variant would quietly skip the OCR path.
 _REV_B_PREFERENCE = ("rev_b_scanned", "rev_b", "rev_b_native")
 
 
@@ -115,16 +115,24 @@ def resolve_pair_files(pair_dir: Path) -> tuple[Path, Path] | None:
     `continue`d on anything else, so the scanned and DXF pairs — 8 of the 12 held-out gold changes —
     were scored as total misses against zero predictions, making the headline `delta_f1_test`
     largely a measure of this function's own naming assumption.
+
+    rev A and rev B are format-matched: rev A is chosen to share rev B's extension (a pair with both
+    `rev_a.pdf` and `rev_a.dxf` must not pair `rev_a.dxf` with `rev_b.pdf` just because 'dxf' sorts
+    first) — a cross-format A/B pair would produce a meaningless delta.
     """
     if not pair_dir.is_dir():
         return None
-    rev_a = sorted(pair_dir.glob("rev_a.*"))
-    if not rev_a:
+    rev_a_variants = sorted(pair_dir.glob("rev_a.*"))
+    if not rev_a_variants:
         return None
     for stem in _REV_B_PREFERENCE:
-        matches = sorted(pair_dir.glob(f"{stem}.*"))
-        if matches:
-            return rev_a[0], matches[0]
+        rev_b_matches = sorted(pair_dir.glob(f"{stem}.*"))
+        if not rev_b_matches:
+            continue
+        rev_b = rev_b_matches[0]
+        # prefer the rev_a whose extension matches rev_b; fall back to the first if none match.
+        rev_a = next((p for p in rev_a_variants if p.suffix == rev_b.suffix), rev_a_variants[0])
+        return rev_a, rev_b
     return None
 
 
@@ -359,6 +367,12 @@ def run_eval(
     split = cfg.get("eval.datasets.split")
     all_pairs = set(split.get("train", [])) | set(split.get("test", []))
 
+    # A fully-injected call (predictions + traces supplied) is the hermetic, network-free path the
+    # docstring promises and the offline tests rely on. OCR scoring shells out to Tesseract, so it
+    # must only run on the live path — otherwise the "deterministic, no-network" run becomes slow
+    # and Tesseract-version-dependent.
+    hermetic = delta_pred_by_pair is not None and chat_preds is not None and trace_files is not None
+
     if delta_pred_by_pair is None:
         delta_pred_by_pair = _compute_delta_pred_live(cfg, all_pairs)
     if chat_preds is None or retrieved is None:
@@ -374,7 +388,7 @@ def run_eval(
         delta_pred_by_pair=delta_pred_by_pair, delta_gold=delta_gold,
         chat_preds=chat_preds, chat_gold=chat_gold, judge=judge,
         retrieved=retrieved, dataset_paths=[delta_gold_path, qa_gold_path],
-        trace_files=trace_files, ocr=_score_ocr_samples(cfg),
+        trace_files=trace_files, ocr=None if hermetic else _score_ocr_samples(cfg),
     )
     scorecard["meta"] = {"generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}
 

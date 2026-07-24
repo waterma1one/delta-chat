@@ -804,10 +804,10 @@
     "citation_validity": 1.0,
     "cost_usd_per_request": 0.0,
     "delta_f1_test": 0.545455,
-    "latency_p95_ms": 145.873
+    "latency_p95_ms": 134.224
   },
   "meta": {
-    "generated_at": "2026-07-24T19:53:38.240387+00:00"
+    "generated_at": "2026-07-24T20:11:09.450777+00:00"
   },
   "ocr": {
     "pair_03_scanned": {

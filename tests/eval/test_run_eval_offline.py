@@ -53,6 +53,16 @@ def test_returns_none_for_missing_or_incomplete_pair(tmp_path):
     assert resolve_pair_files(tmp_path) is None
 
 
+def test_rev_a_and_rev_b_are_format_matched(tmp_path):
+    """A pair with both rev_a.pdf and rev_a.dxf must not cross-pair rev_a.dxf with rev_b.pdf just
+    because 'dxf' sorts before 'pdf' — a cross-format A/B pair yields a meaningless delta."""
+    (tmp_path / "rev_a.pdf").write_bytes(b"a")
+    (tmp_path / "rev_a.dxf").write_bytes(b"a")
+    (tmp_path / "rev_b.pdf").write_bytes(b"b")
+    a, b = resolve_pair_files(tmp_path)
+    assert a.suffix == b.suffix == ".pdf"
+
+
 def test_every_shipped_sample_pair_resolves():
     """Guards the actual repo layout: if a pair stops resolving, the eval silently scores it as a
     total miss rather than failing, so assert on the real directories."""

@@ -33,12 +33,20 @@ def tokenize(text: str) -> list[str]:
     return _TOKEN_RE.findall((text or "").lower())
 
 
+def _phrase_present(phrase: str, query_lc: str, query_tokens: set[str]) -> bool:
+    """Match a keyword against the query. Single-word keys must match a WHOLE token (so 'move'
+    doesn't fire on 'remove'/'movement' and 'add' doesn't fire on 'address'); multi-word phrases
+    ('what changed') are matched as substrings since they can't be a single token."""
+    return phrase in query_tokens if " " not in phrase else phrase in query_lc
+
+
 def route_intent(query: str) -> Literal["delta", "doc", "both"]:
     """Deterministic keyword router (no LLM). 'what changed'-style queries -> delta pool; content
     questions ('what is the setpoint of...') -> doc pools; ambiguous (or neither) -> both."""
     q = query.lower()
-    is_delta = any(k in q for k in _DELTA_KEYWORDS)
-    is_doc = any(k in q for k in _DOC_KEYWORDS)
+    qtok = set(tokenize(query))
+    is_delta = any(_phrase_present(k, q, qtok) for k in _DELTA_KEYWORDS)
+    is_doc = any(_phrase_present(k, q, qtok) for k in _DOC_KEYWORDS)
     if is_delta and not is_doc:
         return "delta"
     if is_doc and not is_delta:
