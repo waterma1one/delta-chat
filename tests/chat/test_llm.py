@@ -11,25 +11,57 @@ from delta_chat.chat.types import LlmResult
 from delta_chat.observability import tracing
 
 
+def _clear_provider_env(monkeypatch, cfg):
+    """Make a provider-selection test hermetic regardless of the ambient environment. Clears every
+    provider env var (a developer may have a real GEMINI_API_KEY exported) AND forces
+    llm.provider=auto — litellm's `load_dotenv()` on import leaks a repo `.env`'s
+    DELTA_CHAT__LLM__PROVIDER override into os.environ, which load_config would otherwise honor."""
+    for var in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "LOCAL_LLM_BASE_URL",
+                "DELTA_CHAT__LLM__PROVIDER"):
+        monkeypatch.delenv(var, raising=False)
+    cfg.data["llm"]["provider"] = "auto"
+
+
 def test_provider_selected_from_anthropic_key(monkeypatch, cfg):
+    _clear_provider_env(monkeypatch, cfg)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("LOCAL_LLM_BASE_URL", raising=False)
     assert llm_mod.select_provider(cfg) == "anthropic"
 
 
 def test_provider_selected_from_openai_key_when_no_anthropic_key(monkeypatch, cfg):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    _clear_provider_env(monkeypatch, cfg)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    monkeypatch.delenv("LOCAL_LLM_BASE_URL", raising=False)
     assert llm_mod.select_provider(cfg) == "openai"
 
 
 def test_provider_selected_from_local_base_url_when_no_keys(monkeypatch, cfg):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _clear_provider_env(monkeypatch, cfg)
     monkeypatch.setenv("LOCAL_LLM_BASE_URL", "http://localhost:11434")
     assert llm_mod.select_provider(cfg) == "local"
+
+
+def test_provider_selected_from_gemini_key(monkeypatch, cfg):
+    _clear_provider_env(monkeypatch, cfg)
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    assert llm_mod.select_provider(cfg) == "gemini"
+
+
+def test_gemini_provider_prefixes_model_for_litellm(monkeypatch, cfg):
+    """litellm routes to Gemini via a `gemini/<model>` model string; the raw config model
+    (e.g. 'gemini-2.0-flash') must be prefixed so the call actually reaches Gemini."""
+    captured = {}
+
+    def _fake_completion(**kwargs):
+        captured.update(kwargs)
+        raise RuntimeError("stop after capturing kwargs")
+
+    monkeypatch.setattr(llm_mod._litellm, "completion", _fake_completion)
+    with pytest.raises(RuntimeError):
+        llm_mod._call_provider(
+            "gemini", "gemini-2.0-flash", [{"role": "user", "content": "hi"}],
+            documents=None, response_format=None, cfg=cfg, timeout_s=5.0,
+        )
+    assert captured["model"] == "gemini/gemini-2.0-flash"
 
 
 def test_llm_result_exposes_usage_model_and_finish_reason(monkeypatch, cfg):
@@ -93,3 +125,9 @@ def test_non_retryable_error_fails_fast_without_backoff(monkeypatch, cfg):
         llm_mod.complete([{"role": "user", "content": "hi"}], cfg=cfg)
 
     assert call_count["n"] == 1
+
+
+def test_litellm_drops_unsupported_params():
+    """Regression: claude-sonnet-5 rejects temperature=0 (only 1 is allowed). A provider-agnostic
+    client must drop the unsupported param, not 500. `drop_params` is set at import time."""
+    assert llm_mod._litellm.drop_params is True

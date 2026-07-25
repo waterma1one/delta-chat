@@ -23,6 +23,13 @@ from .types import LlmResult
 try:
     import litellm as _litellm
 
+    # Different models accept different sampling params — e.g. claude-sonnet-5 rejects any
+    # temperature other than 1, while most models accept temperature=0. For a genuinely
+    # provider-agnostic client, an unsupported param must be dropped, not turned into a hard
+    # UnsupportedParamsError (which otherwise 500s a chat request the moment the pinned model
+    # disagrees with `llm.temperature`). This is the one place that promise is enforced.
+    _litellm.drop_params = True
+
     _RETRYABLE: tuple[type[BaseException], ...] = (
         TimeoutError,
         ConnectionError,
@@ -47,8 +54,9 @@ class LlmUnavailableError(RuntimeError):
 def select_provider(cfg=None) -> str:
     """Pick a provider by config override, else by whichever API key env var is present.
 
-    Order: ANTHROPIC_API_KEY -> anthropic; OPENAI_API_KEY -> openai; LOCAL_LLM_BASE_URL -> local.
-    Keys come from env only (never config), per the security convention in .env.example.
+    Order: ANTHROPIC_API_KEY -> anthropic; OPENAI_API_KEY -> openai; GEMINI_API_KEY -> gemini;
+    LOCAL_LLM_BASE_URL -> local. Keys come from env only (never config), per the security
+    convention in .env.example.
     """
     cfg = cfg or load_config()
     configured = cfg.get("llm.provider", "auto")
@@ -58,10 +66,13 @@ def select_provider(cfg=None) -> str:
         return "anthropic"
     if os.environ.get("OPENAI_API_KEY"):
         return "openai"
+    if os.environ.get("GEMINI_API_KEY"):
+        return "gemini"
     if os.environ.get("LOCAL_LLM_BASE_URL"):
         return "local"
     raise LlmUnavailableError(
-        "no LLM provider configured: set ANTHROPIC_API_KEY, OPENAI_API_KEY, or LOCAL_LLM_BASE_URL"
+        "no LLM provider configured: set ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, "
+        "or LOCAL_LLM_BASE_URL"
     )
 
 
@@ -123,6 +134,11 @@ def _call_provider(
         kwargs["model"] = f"openai/{model}"
         kwargs["api_base"] = os.environ.get("LOCAL_LLM_BASE_URL")
         kwargs["api_key"] = "local"
+    elif provider == "gemini":
+        # litellm routes to Google Gemini via a `gemini/<model>` model string and reads
+        # GEMINI_API_KEY from the env itself. Config carries the bare model id (e.g.
+        # "gemini-2.0-flash") so the same value stays provider-neutral.
+        kwargs["model"] = f"gemini/{model}"
     if response_format is not None:
         kwargs["response_format"] = response_format
 
