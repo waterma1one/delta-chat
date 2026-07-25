@@ -26,7 +26,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0            # FULL history — required, submission is full history
-      - uses: gitleaks/gitleaks-action@v2
+      # Invoke the gitleaks CLI directly rather than gitleaks-action@v2: the action derives its
+      # scan range from the push event as `<firstCommit>^..<head>`, which is an invalid revision
+      # whenever the pushed range includes the repo's initial commit (the root has no parent) —
+      # it aborts with "unknown revision" before scanning. `gitleaks git` defaults to the full
+      # commit graph (root..HEAD) with no `^` range, so it scans all history cleanly.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+      - name: Scan full history for secrets
+        run: gitleaks git . --redact -v --exit-code 1
 
   deterministic-eval:
     runs-on: ubuntu-latest
