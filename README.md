@@ -3,6 +3,9 @@
 Two revisions of an engineering-drawing P&ID in, a structured delta and grounded chat over that
 delta out — observable and evaluated end to end.
 
+📹 **[Demo walkthrough (Loom)](https://www.loom.com/share/b3a3036a75dd49f9a3409b997741cee5)** — a
+~5-minute tour of the functionality and the code.
+
 ## What this is
 
 Given PID_A and PID_B (two revisions of the same P&ID, as native/scanned PDF or DXF), delta-chat
