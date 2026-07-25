@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from delta_chat import config as config_mod
 from delta_chat.config import Config, ConfigError, load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +38,36 @@ def test_env_override_takes_effect(monkeypatch):
     cfg = load_config()
     assert cfg.get("delta.tau") == pytest.approx(0.42)  # YAML-parsed to float
     assert cfg.get("obs.otlp_enabled") is True           # YAML-parsed to bool
+
+
+def test_dotenv_overrides_reach_config(tmp_path, monkeypatch):
+    """Regression: a DELTA_CHAT__ override living only in the repo-root .env (not the shell env)
+    must reach the config. It previously did not — litellm loaded .env lazily, on first import,
+    *after* load_config() had already frozen provider/model, so the .env layer silently no-op'd
+    and provider auto-detection then picked the wrong provider. load_config now loads .env itself
+    before reading env overrides.
+    """
+    env_file = tmp_path / ".env"
+    env_file.write_text("DELTA_CHAT__LLM__PROVIDER=fromdotenv\n", encoding="utf-8")
+    monkeypatch.setattr(config_mod, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(config_mod, "_DOTENV_LOADED", False)  # allow a fresh load in-process
+    monkeypatch.delenv("DELTA_CHAT__LLM__PROVIDER", raising=False)  # only the .env provides it
+
+    cfg = load_config()
+
+    assert cfg.get("llm.provider") == "fromdotenv"
+
+
+def test_shell_env_wins_over_dotenv(tmp_path, monkeypatch):
+    """override=False semantics: an exported shell var beats the .env file value for the same key."""
+    (tmp_path / ".env").write_text("DELTA_CHAT__LLM__PROVIDER=fromdotenv\n", encoding="utf-8")
+    monkeypatch.setattr(config_mod, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(config_mod, "_DOTENV_LOADED", False)
+    monkeypatch.setenv("DELTA_CHAT__LLM__PROVIDER", "fromshell")
+
+    cfg = load_config()
+
+    assert cfg.get("llm.provider") == "fromshell"
 
 
 def test_env_files_contains_no_real_secret():

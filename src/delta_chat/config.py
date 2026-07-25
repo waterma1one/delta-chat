@@ -15,6 +15,36 @@ import yaml
 
 _ENV_PREFIX = "DELTA_CHAT__"
 _MISSING = object()
+_DOTENV_LOADED = False
+
+
+def _load_dotenv_once() -> None:
+    """Load the repo-root ``.env`` into ``os.environ`` exactly once, before config reads overrides.
+
+    litellm also loads ``.env`` — but only lazily, on its first import, which on the chat path
+    happens *after* ``load_config()`` has already frozen provider/model (grounding imports ``llm``
+    lazily inside its functions). That timing made two things silently wrong: ``DELTA_CHAT__*``
+    overrides in ``.env`` never reached the config, and ``ANTHROPIC_API_KEY`` leaked into the env
+    late — after cfg was built with ``provider: auto`` — so provider auto-detection picked anthropic
+    over the intended provider. Loading ``.env`` here, deterministically and before
+    ``_apply_env_overrides``, closes both gaps regardless of import order.
+
+    ``override=False`` keeps real exported shell vars authoritative over the ``.env`` file, per the
+    usual convention (and so test-set env vars are never clobbered).
+    """
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    _DOTENV_LOADED = True
+    try:
+        from dotenv import load_dotenv
+    except Exception:  # pragma: no cover - python-dotenv is a declared dep; guard is defensive only
+        return
+    env_path = _repo_root() / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+    else:  # fall back to find_dotenv's cwd-upward walk when the repo layout isn't preserved
+        load_dotenv(override=False)
 
 
 class ConfigError(KeyError):
@@ -97,6 +127,7 @@ def _resolve_config_path() -> Path:
 
 def load_config(path: str | os.PathLike[str] | None = None) -> Config:
     """Load ``config/default.yaml`` (or ``path``), apply env overrides, return a ``Config``."""
+    _load_dotenv_once()
     cfg_path = Path(path) if path is not None else _resolve_config_path()
     if not cfg_path.exists():
         raise ConfigError(f"config file not found: {cfg_path}")
