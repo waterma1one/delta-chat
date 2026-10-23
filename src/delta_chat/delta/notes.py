@@ -227,7 +227,7 @@ def diff_notes(
     high = cfg.get("delta.notes.semantic_high")
     if low is None or high is None:
         raise ValueError(
-            "delta.notes.semantic_low/high are not calibrated -- run the §10 calibration step "
+            "delta.notes.semantic_low/high are not calibrated -- run a calibration step "
             "before computing note deltas"
         )
     low, high = float(low), float(high)

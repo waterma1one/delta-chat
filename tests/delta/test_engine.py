@@ -1,4 +1,4 @@
-"""Tests for delta/engine.py — orchestration + determinism, against the §04 synthesized native pair."""
+"""Tests for delta/engine.py — orchestration + determinism, against the synthesized native pair."""
 
 from __future__ import annotations
 

@@ -10,7 +10,7 @@ State machine:
     (this is what catches a hallucinated/wrong-span citation — it never counts as Grounded)
 
 Once grounding has run, `ChatAnswer.claims` always carries every claim the model produced — verified
-and unverified alike, each tagged via `Claim.verified` — so section-10's eval harness (faithfulness,
+and unverified alike, each tagged via `Claim.verified` — so the eval harness (faithfulness,
 citation validity, abstention P/R) can see what was emitted, not just what survived.
 """
 

@@ -12,7 +12,7 @@ from delta_chat.config import Config, load_config
 
 @pytest.fixture
 def cfg():
-    """Default config with the note-gate cosine cutoffs filled in (calibration is §10's job; the
+    """Default config with the note-gate cosine cutoffs filled in (calibration is a separate step; the
     delta-engine tests need concrete numbers to exercise the gate's three branches)."""
     data = copy.deepcopy(load_config().data)
     data["delta"]["notes"]["semantic_low"] = 0.35

@@ -1,4 +1,4 @@
-"""LLM-as-judge (§10.5) with the anti-bias controls the eval-rigor points depend on:
+"""LLM-as-judge with the anti-bias controls the eval relies on:
 
 - **Cross-family**: `eval.judge.model` must be a different model family than `llm.model` (the
   answerer) — a same-family judge can't independently validate its own outputs.

@@ -1,7 +1,7 @@
 """Renders a ``Delta`` into JSON (retrieval chunks for grounded chat) and a Markdown summary.
 
-The JSON shape is a contract with §07 (retrieval treats the delta report as one chunk per change,
-each carrying page/sheet/bbox for citation) and §09 (markup consumes ``location.bbox`` + ``type``).
+The JSON shape is a contract with retrieval (it treats the delta report as one chunk per change,
+each carrying page/sheet/bbox for citation) and markup (it consumes ``location.bbox`` + ``type``).
 Keep the ``delta:CHG-000N`` key stable — downstream code indexes on it.
 """
 

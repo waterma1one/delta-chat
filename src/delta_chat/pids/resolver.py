@@ -5,7 +5,7 @@ for synthesized sample PIDs. Richer resolution (object stores, a DB) is out of s
 critical path.
 
 Security: bare/``file://`` paths must resolve **inside an allowed root** (defaults to the repo root)
-so a client-supplied PID at the API seam (§08) cannot read arbitrary host files. Registered sample
+so a client-supplied PID at the API seam cannot read arbitrary host files. Registered sample
 PIDs bypass the check (they are set by trusted synthesis code). A deployment can narrow/widen the
 allowlist via :func:`configure`.
 """

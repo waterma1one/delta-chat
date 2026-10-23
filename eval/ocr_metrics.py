@@ -1,4 +1,4 @@
-"""OCR error measurement (§10 honesty): word/character error rate against a stored ground truth.
+"""OCR error measurement : word/character error rate against a stored ground truth.
 
 The scanned sample pair ships `ocr_truth.txt` — the exact token sequence extracted from the
 *native* rev B before it was rasterized — so the OCR path can be scored against what the page

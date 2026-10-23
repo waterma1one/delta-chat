@@ -162,7 +162,7 @@ def parse(data: bytes, pid: str, filename: str | None = None, *, source_rev: str
 
 
 def _register_builtin_adapters() -> None:
-    """Import + register the concrete adapters. Scanned/DWG parse() are stubs until §06."""
+    """Import + register the concrete adapters. Scanned/DWG parse() are stubs until the DWG adapter lands."""
     from . import pdf_native  # noqa: F401  (registers on import)
 
     try:

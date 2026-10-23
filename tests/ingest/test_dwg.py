@@ -1,4 +1,4 @@
-"""DWG/DXF adapter tests — authored DXF fixtures + the section-04 synthesized DXF pair."""
+"""DWG/DXF adapter tests — authored DXF fixtures + the synthesized DXF pair."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def _dxf_bytes(doc) -> bytes:
 
 def _authored_doc():
     """A small in-memory DXF exercising TEXT, MTEXT (with formatting codes), an INSERT with an
-    attribute, and a DIMENSION -- the section-04 fixture doesn't happen to contain a TEXT or
+    attribute, and a DIMENSION -- the synthesized fixture doesn't happen to contain a TEXT or
     DIMENSION entity, so this authors them directly per the section's test spec."""
     doc = ezdxf.new("R2018", setup=True)
     msp = doc.modelspace()

@@ -231,7 +231,7 @@ def test_answer_citation_verification_catches_non_entailing_span(chat_index, cfg
 
     assert result.state != "Grounded"
     assert result.refusal_reason
-    # the unverified claim is still surfaced (not dropped) so eval/section-10 can see what was
+    # the unverified claim is still surfaced (not dropped) so the eval can see what was
     # emitted, just marked unverified rather than silently discarded.
     assert result.claims
     assert result.claims[0].verified is False

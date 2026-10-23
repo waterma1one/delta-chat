@@ -22,7 +22,7 @@ def app_cfg(tmp_path):
     data["obs"]["trace_dir"] = str(tmp_path / "traces")
     data["obs"]["otlp_enabled"] = False
     data["chat"]["sufficiency"]["use_entailment_check"] = False
-    # delta.notes.semantic_low/high are calibrated in section-10 and null by default; the delta
+    # delta.notes.semantic_low/high are calibrated separately and null by default; the delta
     # engine's own test suite (tests/delta/conftest.py) fills concrete values for the same reason.
     data["delta"]["notes"]["semantic_low"] = 0.35
     data["delta"]["notes"]["semantic_high"] = 0.85
@@ -31,7 +31,7 @@ def app_cfg(tmp_path):
 
 @pytest.fixture
 def registered_pair():
-    """Register the golden native sample pair (section-04) under fresh, test-unique pids so
+    """Register the golden native sample pair under fresh, test-unique pids so
     parallel/repeated test runs never collide on the resolver's shared registry."""
     from delta_chat.pids import resolver
 

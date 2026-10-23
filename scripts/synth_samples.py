@@ -10,7 +10,7 @@ note split), 03 scanned (rasterized + skewed + noised + JPEG rev B; native rev B
 data/samples/provenance.md.
 
 DXF gold bboxes are derived from real geometry via ``ezdxf.bbox`` normalized against the drawing extents
-(the same convention the §06 DWG adapter must use), so they are not fabricated.
+(the same convention the DWG adapter must use), so they are not fabricated.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class GoldChange:
     old: str | None
     new: str | None
     description: str
-    format: str         # extension for §10 segmentation (not in the minimal schema)
+    format: str         # extension for segmentation (not in the minimal schema)
     hard_slice: bool = False
 
 
@@ -179,7 +179,7 @@ def _degrade_to_scanned(native_pdf: bytes, cfg) -> bytes:
 
 
 def _dxf_norm(entity_ext, doc_ext) -> list:
-    """Normalize a DXF entity bounding box against the drawing extents (§06 must match this)."""
+    """Normalize a DXF entity bounding box against the drawing extents (the DWG adapter must match this)."""
     dw = doc_ext.extmax.x - doc_ext.extmin.x or 1.0
     dh = doc_ext.extmax.y - doc_ext.extmin.y or 1.0
     raw = (entity_ext.extmin.x - doc_ext.extmin.x, entity_ext.extmin.y - doc_ext.extmin.y,

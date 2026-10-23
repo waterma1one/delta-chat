@@ -1,4 +1,4 @@
-"""Grounded-chat quality metrics (§10.3). Two families:
+"""Grounded-chat quality metrics. Two families:
 
 - **Model-graded, non-gating**: faithfulness and answer-relevancy — backed by an injected `judge`
   (never called directly here; tests pass a `mock_judge` so this module never hits the network). A

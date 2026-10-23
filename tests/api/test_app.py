@@ -1,5 +1,5 @@
 """Tests for api/app.py — FastAPI endpoints. LLM is mocked at the `answer()` call site (canned
-`ChatAnswer`), ingest/delta run for real against the golden native sample pair (section-04)."""
+`ChatAnswer`), ingest/delta run for real against the golden native sample pair."""
 
 from __future__ import annotations
 
@@ -205,8 +205,8 @@ def test_unhandled_exception_response_body_is_generic(app_cfg, registered_pair, 
 
 
 def test_markup_returns_annotated_pdf(client, registered_pair):
-    # markup.overlay (section-09) now exists — /markup renders a real annotated PDF rather than
-    # the 501 fallback this test asserted before section-09 was built.
+    # markup.overlay now exists — /markup renders a real annotated PDF rather than
+    # the 501 fallback this test asserted before it was built.
     pid_a, pid_b = registered_pair
     resp = client.post("/delta", json={"pid_a": pid_a, "pid_b": pid_b})
     delta_id = resp.json()["delta_id"]
@@ -219,7 +219,7 @@ def test_markup_returns_annotated_pdf(client, registered_pair):
 
 
 def test_markup_returns_501_when_overlay_unavailable(client, registered_pair, monkeypatch):
-    # Simulate section-09 being absent: `from ..markup import overlay` inside the endpoint only
+    # Simulate the markup module being absent: `from ..markup import overlay` inside the endpoint only
     # raises ImportError if the submodule isn't already cached as a package attribute AND a fresh
     # import of it fails — so both the cached attribute and sys.modules entry must be cleared.
     import sys

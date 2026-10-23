@@ -1,6 +1,6 @@
 """Scanned-PDF adapter — raster + preprocess + Tesseract OCR -> canonical Document.
 
-Plugs into the same ``FormatAdapter`` seam as the native-PDF adapter (§03): the delta engine never
+Plugs into the same ``FormatAdapter`` seam as the native-PDF adapter: the delta engine never
 learns whether a page came from a text layer or an OCR pass. Coordinates go through the shared
 ``normalize_bbox(..., "image_px", page_size, dpi=...)`` helper, using the *effective* DPI of the
 preprocessed (upscaled) image, not the raw render DPI.

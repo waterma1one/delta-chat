@@ -1,4 +1,4 @@
-"""Config loader + .env.example security tests (plan §12, this section's portion)."""
+"""Config loader + .env.example security tests."""
 
 from __future__ import annotations
 

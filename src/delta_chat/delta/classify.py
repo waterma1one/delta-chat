@@ -14,7 +14,7 @@ from .align import MatchResult, SimWeights, centroid_shift_frac, normalize_text
 # Appended to the description when an add/remove's runner-up margin is close to tau — i.e. the best
 # rejected candidate on the other side almost cleared the match bar, so this is plausibly a missed
 # modify rather than a genuine add/remove. Surfaced via description + low match_conf since the shared
-# Change schema (owned by §01) has no dedicated flag field.
+# Change schema has no dedicated flag field.
 _MISSED_MODIFY_SUFFIX = " [possible missed-modify: low confidence]"
 
 

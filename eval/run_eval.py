@@ -1,4 +1,4 @@
-"""Evaluation orchestrator (§10.6): scorecard.json + budget.md + baseline diff + CI exit code.
+"""Evaluation orchestrator: scorecard.json + budget.md + baseline diff + CI exit code.
 
 **CI gates ONLY the `deterministic` block** (delta P/R/F1 on held-out test gold, citation
 validity — both pure code, byte-stable) vs. a stored baseline, using `eval.regression_thresholds`.
@@ -21,7 +21,7 @@ the real pipeline (ingest -> compute_delta -> chat.answer.answer against `data/s
 does hit the LLM — this "live" path is not exercised by the default test suite, matching the same
 convention used for other live-network paths elsewhere in this codebase.
 
-`python -m eval.run_eval --offline` (section-11: `make eval` / the CI deterministic gate) runs that
+`python -m eval.run_eval --offline` (`make eval` / the CI deterministic gate) runs that
 same real pipeline — real ingest, real delta, real BM25 retrieval — but with `delta_chat.chat.llm.complete`
 monkeypatched to `_offline_llm_complete` and a `judge=_OfflineJudge()`, so no network call and no
 API key are required. This only changes what backs the `chat`/model-graded block; the `deterministic`
@@ -174,7 +174,7 @@ def _compute_chat_preds_live(
     the real grounded-chat pipeline (hits the LLM). Returns (preds, retrieved) where `retrieved`
     maps question -> the citation_ids chat.index.retrieve returned, for the retrieval metrics.
 
-    section-11 fix: each question's retrieve+answer call runs inside `tracing.start_request` (same
+    each question's retrieve+answer call runs inside `tracing.start_request` (same
     reasoning as `_compute_delta_pred_live` above) — `chat.index.retrieve`/`chat.answer.answer`
     already self-tag "retrieval"/"answer" stages internally, they just need an active request to
     attach to for a trace file to actually get written."""
@@ -204,7 +204,7 @@ def _compute_chat_preds_live(
                 index_cache[g.pair_id] = build_index(doc_a, doc_b, _Delta(pid_a="A", pid_b="B", changes=delta), cfg)
         index = index_cache[g.pair_id]
         if index is None:
-            # section-11 fix: `score_chat` requires preds/gold aligned 1:1 by question (it raises
+            # `score_chat` requires preds/gold aligned 1:1 by question (it raises
             # otherwise), so a pair whose source files this live path can't ingest (e.g. pair_05_dxf,
             # which only has .dxf, not rev_a.pdf/rev_b.pdf) must still contribute a pred — honestly
             # reported as unanswerable — rather than silently drop the gold question and desync the

@@ -1,7 +1,7 @@
 """Prometheus metrics: per-stage latency, tokens, cost, delta counts, retrieval hits.
 
 Metrics live on a dedicated ``CollectorRegistry`` (not the global default) so tests can ``reset()`` to
-a clean registry. Section-08 mounts :func:`render_prometheus` at ``GET /metrics``.
+a clean registry. The API mounts :func:`render_prometheus` at ``GET /metrics``.
 """
 
 from __future__ import annotations

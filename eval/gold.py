@@ -1,5 +1,5 @@
-"""Typed loaders for the gold datasets section-04 produces (eval/datasets/*.jsonl). Mirrors the
-JSONL record shapes; does not duplicate section-04's writer.
+"""Typed loaders for the gold datasets the sample generator produces (eval/datasets/*.jsonl). Mirrors the
+JSONL record shapes; does not duplicate the generator's writer.
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ def load_retrieval_gold(path: str | Path) -> list[RetrievalGold]:
 
 
 def qa_gold_as_retrieval_gold(qa: list[QAGold]) -> list[RetrievalGold]:
-    """section-04 does not produce a dedicated retrieval_gold.jsonl — derive retrieval gold from
+    """the generator does not produce a dedicated retrieval_gold.jsonl — derive retrieval gold from
     the QA set's expected_citation_ids (the chunks that should be retrieved to answer each
     answerable question)."""
     return [

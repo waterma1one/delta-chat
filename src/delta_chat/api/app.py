@@ -2,7 +2,7 @@
 
 No business logic lives here: every endpoint resolves a PID, calls into
 ``ingest``/``delta``/``chat``, and shapes the result for HTTP. Each request opens a
-``pipeline.request`` root span (section-02 tracing) with `ingest`/`delta`/`retrieval`/`llm.call`/
+``pipeline.request`` root span (tracing) with `ingest`/`delta`/`retrieval`/`llm.call`/
 `answer` child stages, and binds a `request_id` correlation key that must survive the thread-pool
 offload used for sync CPU work (PyMuPDF/Tesseract/delta compute) — see `run_sync_ctx`.
 """
@@ -59,7 +59,7 @@ class ChatReq(BaseModel):
 async def run_sync_ctx(fn, *args, **kwargs):
     """Offload sync CPU work to the thread-pool executor while preserving the current context
     (request_id, active trace/stage) — contextvars set on the event-loop task are not otherwise
-    visible in worker threads (plan §9; explicitly tested via stage-log request_id propagation)."""
+    visible in worker threads (explicitly tested via stage-log request_id propagation)."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, tracing.run_in_context(fn, *args, **kwargs))
 

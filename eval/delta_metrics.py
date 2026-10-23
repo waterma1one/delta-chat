@@ -1,4 +1,4 @@
-"""Delta-quality metrics (§10.2) — Hungarian-matched P/R/F1 at multiple τ, soft-F1, a type-
+"""Delta-quality metrics — Hungarian-matched P/R/F1 at multiple τ, soft-F1, a type-
 confusion matrix, and metrics segmented by pair/format/hard_slice. This is the deterministic,
 CI-gated core metric: the held-out test-split delta P/R/F1 must be pure code and byte-stable.
 

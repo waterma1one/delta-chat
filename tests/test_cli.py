@@ -1,6 +1,6 @@
-"""Tests for cli.py — `demo`/`run` are the graded reproducible-run path (plan §13). The LLM is
+"""Tests for cli.py — `demo`/`run` are the reproducible-run path. The LLM is
 mocked at `cli.answer` (canned `ChatAnswer`); ingest/delta run for real against the golden native
-sample pair (section-04)."""
+sample pair."""
 
 from __future__ import annotations
 
@@ -104,8 +104,8 @@ def test_run_writes_trace_file_with_zero_obs_services(registered_pair, cli_cfg, 
 
 
 def test_run_writes_markup_pdf(registered_pair, cli_cfg, tmp_path):
-    # markup.overlay (section-09) now exists — `run` writes a real annotated PDF rather than
-    # skipping, which is what this test asserted before section-09 was built.
+    # markup.overlay now exists — `run` writes a real annotated PDF rather than
+    # skipping, which is what this test asserted before it was built.
     pid_a, pid_b = registered_pair
     exit_code = cli.run(pid_a, pid_b, cfg=cli_cfg, out_dir=tmp_path / "out")
     assert exit_code == 0

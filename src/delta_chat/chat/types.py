@@ -1,7 +1,7 @@
-"""Shared dataclasses for the grounded-chat subsystem — the public contract §08 and §10 consume.
+"""Shared dataclasses for the grounded-chat subsystem — the public contract the API and eval layers consume.
 
 Keep this module free of retrieval/LLM/grounding logic: it exists so ``answer.py`` can define
-``ChatAnswer`` without importing ``index.py``'s BM25 machinery, and so §08/§10 can import just the
+``ChatAnswer`` without importing ``index.py``'s BM25 machinery, and so they can import just the
 shapes they need.
 """
 

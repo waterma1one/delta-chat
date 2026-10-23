@@ -61,7 +61,7 @@ def is_note_marker(text: str) -> bool:
 
 def find_tables(page, normalize) -> list[tuple[Region, BBox, list, object]]:
     """Best-effort table detection. Returns (region, normalized bbox, rows, table_obj) per table so the
-    classifier (§05) can read revision-table rows deterministically."""
+    classifier can read revision-table rows deterministically."""
     out: list[tuple[Region, BBox, list, object]] = []
     try:
         tf = page.find_tables(strategy="lines")

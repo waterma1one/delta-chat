@@ -1,6 +1,6 @@
 """DWG/DXF adapter — DWG->DXF convert (if needed) + ezdxf parse -> canonical Document.
 
-Plugs into the same ``FormatAdapter`` seam as the native/scanned PDF adapters (§03/§06): the delta
+Plugs into the same ``FormatAdapter`` seam as the native/scanned PDF adapters: the delta
 engine never learns the source format. Scope is intentionally coarse — DXF-exposed geometry only
 (TEXT/MTEXT/INSERT attribs/DIMENSION/LINE), no full P&ID connectivity-graph delta.
 

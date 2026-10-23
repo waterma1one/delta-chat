@@ -1,4 +1,4 @@
-"""Tests for `--offline` mode (section-11): `make eval` / the CI deterministic gate must never
+"""Tests for `--offline` mode : `make eval` / the CI deterministic gate must never
 need a live model or an API key. `_offline_llm_complete` is a deterministic stand-in for
 `delta_chat.chat.llm.complete`, and `_OfflineJudge` a deterministic stand-in for the live judge —
 both wired in by `eval.run_eval.main(["--offline", ...])`, mirroring the same mocked-LLM-fixture

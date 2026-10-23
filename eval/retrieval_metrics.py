@@ -1,4 +1,4 @@
-"""Retrieval-quality metrics + cost/latency budget table (§10.4). Both are deterministic, pure
+"""Retrieval-quality metrics + cost/latency budget table. Both are deterministic, pure
 code over a labeled query -> relevant-chunk-ids set (retrieval metrics) or trace JSON files
 (budget table) — no LLM involved.
 """
@@ -78,7 +78,7 @@ def compute_budget_stats(trace_files: list[str | Path]) -> dict:
 
 
 def build_budget_table(trace_files: list[str | Path], *, sheets_extrapolation: int = 500) -> str:
-    """Read trace JSON files (§9 schema); for each stage compute p50/p95 latency and sum
+    """Read trace JSON files (trace schema); for each stage compute p50/p95 latency and sum
     input/output tokens + USD (from `stages[].attrs`); return a Markdown table for `budget.md`,
     including a 'what for a `sheets_extrapolation`-sheet set?' extrapolation note."""
     latencies: dict[str, list[float]] = {}
