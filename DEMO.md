@@ -46,8 +46,7 @@ Expected shape of `data/output/<id>/report.json`:
 
 ## 2. One grounded chat exchange — answerable + abstention
 
-Requires a real LLM key (`.env`), since answer generation is one of the two places this system
-calls a model.
+Requires a real LLM key (`.env`), since answer generation and the sufficiency check call a model.
 
 ```bash
 uv run delta-chat chat --pid-a data/samples/pair_01_native/rev_a.pdf \
@@ -57,14 +56,14 @@ uv run delta-chat chat --pid-a data/samples/pair_01_native/rev_a.pdf \
 Then at the `>` prompt, try an answerable question first:
 
 ```
-> what changed about the setpoint?
+> what dimension changed?
 ```
 
-Expected shape:
+Expected shape (illustrative; the wording and change id vary by model and run):
 
 ```
-[Grounded] The setpoint for FV-9040 changed from 150 psi to 175 psi.
-  cite: delta:CHG-0003 (delta) page=0 sheet=1
+[Grounded] The dimension changed from 150mm to 200mm.
+  cite: delta:CHG-<id> (delta) page=0 sheet=1
 ```
 
 Then an out-of-scope question, to see honest abstention:
@@ -73,11 +72,11 @@ Then an out-of-scope question, to see honest abstention:
 > what is the weather in Houston?
 ```
 
-Expected shape:
+Expected shape (illustrative; the percentage depends on what retrieval returns):
 
 ```
 [Rejected] 
-  refusal_reason: retrieved evidence has no clear best match (normalized score margin 0.00 < 0.15) — top candidates are too similar in relevance to trust
+  refusal_reason: retrieved evidence covers only 0% of the query terms (minimum 10%) — nothing retrieved is on-topic enough to ground an answer
 ```
 
 (Or, if retrieval finds *some* superficially related-but-wrong evidence, the sufficiency gate's
@@ -97,18 +96,19 @@ approach](README.md#evaluation-approach) for why). Writes `scorecard.json` (giti
 document text) and `budget.md`, and prints nothing if there's no regression against
 `eval/baseline_scorecard.json`, or `REGRESSION: ...` lines if there is.
 
-Expected shape of `scorecard.json`'s gated section:
+Excerpt of `scorecard.json`, with values from the committed `eval/baseline_scorecard.json`
+(latency depends on the machine):
 
 ```json
 {
   "deterministic": {
-    "delta_f1_test": 0.62,
+    "delta_f1_test": 0.545455,
     "citation_validity": 1.0,
-    "latency_p95_ms": 850.0,
+    "latency_p95_ms": 134.224,
     "cost_usd_per_request": 0.0
   },
   "delta": {"test": {"by_segment": {"format:pdf_native": {...}, "format:pdf_scanned": {...}, "format:dwg": {...}}}},
-  "chat": {"faithfulness": {"mean": 1.0, "stdev": 0.0}, "abstention": {"precision": 0.3, "recall": 1.0, "f1": 0.46}},
+  "chat": {"faithfulness": {"mean": 1.0, "stdev": 0.0}, "abstention": {"precision": 1.0, "recall": 0.666667, "f1": 0.8}},
   "retrieval": {"...": "Hit-Rate/Recall/MRR at k=1,3,5,10"}
 }
 ```
