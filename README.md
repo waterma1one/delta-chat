@@ -1,229 +1,274 @@
 # delta-chat
 
-Two revisions of an engineering-drawing P&ID in, a structured delta and grounded chat over that
-delta out — observable and evaluated end to end.
+Compares two revisions of a P&ID drawing (native PDF, scanned PDF, or DXF), reports what changed as a
+typed delta, and answers questions about the changes with citations, for engineers reviewing drawing
+revisions.
 
-📹 **[Demo walkthrough (Loom)](https://www.loom.com/share/b3a3036a75dd49f9a3409b997741cee5)** — a
-~5-minute tour of the functionality and the code.
+## Demo
 
-## What this is
+Video walkthrough (Loom, about 5 minutes): https://www.loom.com/share/b3a3036a75dd49f9a3409b997741cee5
 
-Given PID_A and PID_B (two revisions of the same P&ID, as native/scanned PDF or DXF), delta-chat
-ingests both into a canonical representation, computes a typed, deterministic **delta** (added /
-removed / modified / moved / renumbered changes with dual confidence scores), and answers questions
-about that delta and the underlying documents through a **grounded chat** interface — every claim
-cites a resolvable source span, or the system abstains.
+<!-- SCREENSHOT: the /ui page with a loaded pair, showing the "Delta report" panel and a "Grounded chat" answer with delta and doc-span citations. Save as docs/screenshot.png -->
 
-North star: a canonical-representation seam between ingestion and everything downstream; a
-deterministic-first delta engine (Hungarian alignment + typed classification, not a raw text/pixel
-diff and not an LLM-authored delta); the LLM confined to exactly two judgment calls — the semantic
-note-gate (deciding whether an ambiguous reword is cosmetic) and the chat answer itself.
+## What it does
 
-## Setup
+- Ingests both revisions into one canonical `Document`/`Item` model, whatever the input format:
+  native PDF (PyMuPDF), scanned PDF (OpenCV preprocessing + Tesseract, with docTR as an optional
+  engine), or DXF (ezdxf). `.dwg` is converted to DXF when `dwg2dxf` or the ODA File Converter is on
+  the PATH; otherwise the adapter returns a "conversion required" status.
+- Tags instruments, equipment and line numbers with configurable ISA-5.1 style regexes.
+- Computes a deterministic delta: `added`, `removed`, `modified`, `moved` and `renumbered` changes,
+  each with two confidence scores (`match_conf` for alignment, `class_conf` for classification).
+- Writes the delta as `report.json` and `report.md`, plus a best-effort annotated PDF overlay.
+- Answers questions over the delta and both documents. Each answer is `Grounded`, `Partial` or
+  `Rejected`; every claim must cite a source id that resolves, and the system abstains when the
+  retrieved evidence is not sufficient.
+- Exposes the same pipeline over a FastAPI service with a small web UI at `/ui`.
+- Writes a JSON trace file per run, exposes Prometheus metrics at `/metrics`, and can optionally
+  export OpenTelemetry spans to Phoenix.
+- Includes an evaluation pipeline that scores delta, chat, retrieval and OCR quality and gates CI on the
+  deterministic metrics.
 
-```bash
-uv sync                       # Python 3.11+, dependencies via uv
-cp .env.example .env          # fill in ANTHROPIC_API_KEY or OPENAI_API_KEY for grounded chat
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph entry[Entry points]
+        CLI["cli.py<br/>demo | run | chat | markup"]
+        API["api/app.py (FastAPI)<br/>/ingest /delta /report /chat /markup /ui"]
+    end
+
+    PID["pids/resolver.py<br/>file:// or path"]
+
+    subgraph ingest[ingest/]
+        REG["base.py adapter registry"]
+        NAT["pdf_native.py<br/>PyMuPDF"]
+        SCN["pdf_scanned.py<br/>OpenCV + Tesseract / docTR"]
+        DWG["dwg.py<br/>ezdxf, dwg2dxf / ODA"]
+        TAG["regions.py + tagging.py"]
+    end
+
+    CAN["canonical/model.py<br/>Document / Item"]
+
+    subgraph delta[delta/]
+        ALN["align.py<br/>Hungarian per region"]
+        CLS["classify.py<br/>typed changes"]
+        NOT["notes.py<br/>LCS note diff + cosine gate"]
+        ENG["engine.py compute_delta"]
+        REP["report.py<br/>JSON + Markdown"]
+    end
+
+    MARK["markup/overlay.py<br/>annotated PDF"]
+
+    subgraph chat[chat/]
+        IDX["index.py<br/>BM25 or hybrid RRF"]
+        GRD["grounding.py<br/>check_sufficiency<br/>json | anthropic_citations"]
+        ANS["answer.py<br/>citation verification"]
+        LLM["llm.py (litellm)"]
+    end
+
+    PROV[("Anthropic / OpenAI /<br/>Gemini / local")]
+
+    subgraph obs[observability/]
+        TR["tracing.py<br/>traces/*.json, optional OTLP"]
+        MET["metrics.py<br/>/metrics"]
+        COST["cost.py"]
+    end
+
+    PHX[("Phoenix (obs profile)")]
+    PROM[("Prometheus + Grafana<br/>(obs profile)")]
+    EVAL["eval/run_eval.py<br/>scorecard.json + budget.md"]
+
+    CLI --> PID
+    API --> PID
+    PID --> REG
+    REG --> NAT & SCN & DWG
+    NAT & SCN & DWG --> TAG --> CAN
+    CAN --> ALN --> CLS --> ENG
+    NOT --> ENG
+    ENG --> REP
+    ENG --> MARK
+    CAN --> IDX
+    ENG --> IDX
+    IDX --> GRD --> ANS
+    GRD --> LLM --> PROV
+    LLM --> COST
+    TR -. optional .-> PHX
+    MET --> PROM
+    EVAL --> ENG
+    EVAL --> ANS
 ```
 
-(`make install` does both of the above, and only seeds `.env` if it doesn't already exist.)
+Design choices and their tradeoffs:
 
-- **Tesseract** is required for scanned-PDF OCR (`apt-get install tesseract-ocr` / `brew install
-  tesseract`; the Docker image installs it automatically).
-- **ODA File Converter** is optional, for real `.dwg` support (`.dwg` -> `.dxf`). Without it, the
-  DWG adapter honestly reports "conversion required" rather than faking support; `.dxf` inputs
-  always parse regardless.
-- Keys come from the environment only (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `LOCAL_LLM_BASE_URL`
-  for Ollama/vLLM), never from config, and are never committed (`.env` is gitignored).
+- **One canonical model between ingestion and everything else.** Every adapter produces the same
+  `Document`/`Item` types, so the delta engine, retrieval and eval code have no per-format branches.
+  The cost is that anything a format carries beyond text, position and type is dropped.
+- **Deterministic delta, no LLM in the default path.** Items are aligned with a Hungarian assignment
+  (`scipy.optimize.linear_sum_assignment`) per drawing region, scored on text, spatial, type and
+  region similarity, then classified by rules. Changes are sorted before ids are assigned, so the
+  same input gives byte-identical JSON. The note gate can call an LLM for ambiguous rewords, but its
+  band is collapsed to a single cutoff (`semantic_low == semantic_high == 0.90` in
+  `config/default.yaml`), so in practice the delta never calls a model. That trades away the
+  cosmetic-versus-meaningful distinction a calibrated band would give.
+- **Two confidence scores per change.** `match_conf` and `class_conf` are kept separate so a caller
+  can tell "matched the wrong item" from "matched correctly but unsure of the type". Nothing filters
+  on them by default.
+- **BM25 instead of a vector database.** Retrieval runs over one pair's chunks (tens to low hundreds),
+  so BM25 with an optional hybrid mode (BM25 fused via RRF with a term-frequency cosine score, no
+  model download) is enough. Retrieval quality is currently low, see the baseline numbers below.
+- **Two grounding paths, chosen by config.** `chat.grounding: json` (provider-agnostic structured
+  output, the default) or `anthropic_citations` (Anthropic Citations API). They are not combined in
+  one request.
+- **Abstain before answering.** `check_sufficiency` first requires the best chunk to cover at least
+  `coverage_min` of the query terms (pure code), then asks the model a yes/no "is this enough to
+  answer" question. After generation, each claim is checked against its cited span with a
+  rapidfuzz `partial_ratio` threshold, a lexical stand-in for entailment.
 
-## Run
+## Stack
 
-| Command | What it does |
+- Python 3.11+, managed with uv (`pyproject.toml`, `uv.lock`)
+- Ingestion: PyMuPDF, pytesseract (Tesseract), opencv-python-headless, ezdxf; optional python-doctr
+- Delta: numpy, scipy, rapidfuzz
+- Chat: rank-bm25, litellm, tiktoken
+- Serving: FastAPI, uvicorn
+- Observability: OpenTelemetry SDK + OTLP exporter, prometheus-client, structlog
+- Eval extras (optional): ragas, deepeval
+- Tests: pytest, pytest-cov, httpx
+- Docker and Docker Compose; optional Phoenix, Prometheus and Grafana under the `obs` profile
+- CI: GitHub Actions (tests with coverage gate, gitleaks secret scan, offline eval gate)
+
+## Run it locally
+
+Prerequisites: [uv](https://docs.astral.sh/uv/), Python 3.11+, and Tesseract for scanned PDFs
+(`brew install tesseract` or `apt-get install tesseract-ocr`).
+
+```bash
+make install    # uv sync, copy .env.example to .env if missing, generate sample pairs
+make run        # ingest the default pair, write report.json/report.md (+ markup.pdf) to data/output/<id>/
+make demo       # run, then an interactive grounded chat in the terminal
+make chat       # interactive grounded chat over a pair
+make markup     # write an annotated PDF of the delta to ./markup.pdf
+make eval       # offline eval: scorecard.json + budget.md, non-zero exit on regression
+make test       # pytest suite
+```
+
+Use another pair with `PID_A=path/to/a.pdf PID_B=path/to/b.pdf make run` (bare paths or `file://`
+URIs). The default pair is `data/samples/pair_01_native/`. Sample pairs are generated by
+`scripts/synth_samples.py` and are not committed.
+
+With the CLI directly, a one-shot question instead of the interactive loop:
+
+```bash
+PYTHONPATH=src uv run delta-chat demo \
+  --pid-a data/samples/pair_01_native/rev_a.pdf \
+  --pid-b data/samples/pair_01_native/rev_b.pdf \
+  --query "what changed about the setpoint?"
+```
+
+Docker:
+
+```bash
+make up         # app on :8000 (web UI at http://localhost:8000/ui, /healthz, /metrics)
+make up-obs     # adds Phoenix :6006, Prometheus :9090, Grafana :3000
+make down
+```
+
+The compose file uses the optional `env_file` form, which needs Docker Compose v2.24 or newer.
+
+**Keys.** Ingestion, delta, reports, markup, retrieval, `make eval` and `make test` need no API key.
+Chat answers need one LLM provider, read from the environment (see `.env.example`):
+
+| Variable | Purpose |
 |---|---|
-| `make demo` | **Acceptance command.** Ingests PID_A + PID_B, writes the delta report, then runs grounded chat — one invocation, no browser. |
-| `make run` | Ingest -> delta report (JSON + Markdown) + markup overlay (best-effort) -> `data/output/<id>/`. |
-| `make chat` | Interactive grounded chat over an already-computed pair. |
-| `make eval` | Writes `scorecard.json` + `budget.md`, diffs `eval/baseline_scorecard.json`, exits non-zero on a deterministic regression. |
-| `make markup` | Annotated PDF overlay of the delta (bonus). |
-| `make test` | Full deterministic + mocked-LLM test suite. |
-| `make up` | App only, via Docker (`GET /metrics`, `/healthz`, and the chat UI at `:8000/ui`). |
-| `make up-obs` | App + Phoenix (`:6006`) + Prometheus (`:9090`) + Grafana (`:3000`) — opt-in, `--profile obs`. |
+| `ANTHROPIC_API_KEY` | Anthropic (default model `claude-sonnet-5` in `config/default.yaml`) |
+| `OPENAI_API_KEY` | OpenAI |
+| `GEMINI_API_KEY` | Gemini |
+| `LOCAL_LLM_BASE_URL` | Ollama or vLLM OpenAI-compatible endpoint, no key |
 
-Override the sample pair with `PID_A=... PID_B=... make demo` (accepts `file://` URIs or bare
-paths; defaults point at `data/samples/pair_01_native/`). `demo`/`run`/`chat`/`eval`/`markup`/`test`
-all depend on `make samples`, which regenerates `data/samples/` + eval gold from the two source
-PDFs (fast, deterministic, gitignored — not committed) — no manual setup step needed.
+`llm.provider: auto` picks the first present in the order anthropic, openai, gemini, local. Any
+config value can be overridden with `DELTA_CHAT__<SECTION>__<KEY>`, for example
+`DELTA_CHAT__LLM__MODEL=gemini-2.0-flash`. Note that the default eval judge is `gpt-4o-mini`, so a
+live (non-offline) eval run needs an OpenAI key as well.
 
-`docker-compose.yml`'s `app` service uses the `env_file: [{path: .env, required: false}]` long form
-so the container runs even with no `.env` present; this needs Docker Compose v2.24+ (Jan 2024). On
-an older Compose, either upgrade or create an empty `.env` before `docker compose up`.
+## Tests and evaluation
 
-**The critical path is zero-infra.** `demo`, `run`, `chat`, `eval`, `markup`, and `test` need no
-Docker, no Phoenix/Prometheus/Grafana, and — with the one exception below — no LLM key: ingestion,
-the delta engine, retrieval (BM25), and the eval gate are all pure code. The one place a live model
-is inherently required is **generating a grounded chat answer** (the LLM's other confined job,
-alongside the note-gate). `make eval`'s default (`--offline`) sidesteps even that for the CI/local
-gate — see [Evaluation approach](#evaluation-approach).
+```bash
+make test       # uv run pytest -m "not llm"
+make eval       # python -m eval.run_eval --offline --baseline eval/baseline_scorecard.json
+```
 
-## Design decisions & trade-offs
+The suite has 234 test functions across 31 files (counted with
+`git grep -c -E "^\s*(async )?def test_" -- tests`). Tests marked `slow` need Tesseract. 10 tests parse the original
+source drawings and skip without them; those drawings are not redistributed, so the tests run
+only if the files are placed in `data/samples/source/`. CI runs the
+suite with an 80% coverage floor on `canonical`, `ingest`, `delta` and `eval`.
 
-- **The canonical-representation seam.** Every ingestion adapter (native PDF, scanned PDF+OCR, DXF)
-  converges on one `Document`/`Item` model. The delta engine, chat retrieval, and eval harness never
-  know or care which adapter produced a document — this is what lets scanned and DWG/DXF pairs
-  reuse the same delta/chat/eval code paths with zero branching downstream of ingestion.
-- **Deterministic-first delta.** Hungarian-algorithm alignment (text + spatial + type + region
-  similarity) plus typed, rule-based classification produces the delta, not a raw text/pixel diff
-  and not an LLM asked to "describe what changed." The LLM is invoked for exactly one narrow
-  judgment — whether an *ambiguous* note reword is cosmetic or meaningful — and even that call is
-  optional: this deployment's note-gate band is collapsed to a single cosine-similarity cutoff (see
-  [Honest failure taxonomy](#honest-failure-taxonomy--known-limitations) for why), so in practice
-  the whole delta path runs LLM-free.
-- **Dual confidence, not a single score.** Every `Change` carries a `match_conf` (alignment quality)
-  and a `class_conf` (classification/note-gate certainty) separately, so a caller can distinguish "we
-  matched the wrong item" from "we matched correctly but aren't sure how to classify it."
-- **BM25, not a vector DB, at 2-document scale.** Retrieval is over a single delta's worth of chunks
-  (tens to low hundreds), where a vector database would be pure overhead with no recall benefit; BM25
-  with an optional hybrid mode is the right-sized choice here, not a placeholder for "the real thing."
-- **Two grounding paths, deliberately not combined.** `chat.grounding` selects `json` (provider-
-  agnostic structured output, the default) or `anthropic_citations` (Anthropic's native Citations
-  API). They're mutually exclusive per call — `response_format` (strict JSON) and `documents`
-  (Citations blocks) can't both be set on the same request per the Anthropic API — so switching is a
-  config choice, not a runtime combination.
-- **The sufficiency gate uses a *normalized* signal.** `check_sufficiency` never thresholds a raw
-  BM25/coverage score directly; it min-max normalizes the top-k scores and gates on the *margin*
-  between the best and second-best candidate. A flat top-k (nothing stands out) abstains even when
-  absolute coverage looks fine, because a flat ranking means nothing distinguishes the right answer
-  from the rest.
-- **Train/test split to avoid train-on-test leakage.** `eval.datasets.split` fixes which sample pairs
-  are held out; the CI-gated `delta_f1_test` metric is computed only over the test split, never the
-  pair used to sanity-check the pipeline during development.
+`make eval` runs the real ingest, delta and BM25 retrieval, but replaces chat generation and the
+judge with a deterministic stub (`--offline`). Only the `deterministic` block is gated against
+`eval/baseline_scorecard.json`: delta F1 on the test split, citation validity, p95 latency and cost
+per request. Model-graded metrics are reported but never gated. Drop `--offline` for a run against
+a live model.
 
-## Observability approach
+The gold data is five synthesized revision pairs with logged edits (`data/samples/provenance.md`):
+`pair_01_native` is the train split, the other four are the test split. Gold sets are small: 17
+delta records and 12 Q&A items (`wc -l eval/datasets/*.jsonl`).
 
-- Every request opens a `pipeline.request` span (OTel GenAI semantic conventions) with per-stage
-  child spans (`ingest`, `delta`, `answer`, ...).
-- A **JSON trace file per run** is written to `traces/` unconditionally — this is the load-bearing,
-  zero-infra observability path; it works with no external services and is what `tests/test_cli.py`
-  asserts on.
-- OTLP export to Phoenix is opt-in (`obs.otlp_enabled`, off by default) and additive — enabling it
-  never changes what gets written to `traces/`.
-- Token counts and cost are recorded on every LLM call, **including failed ones** (a timed-out call
-  still billed its input tokens) — see `src/delta_chat/observability/cost.py`.
-- Every call carries a `request_id` for cross-thread-pool correlation.
-- Failures are surfaced, not hidden: degraded OCR confidence is flagged on the `Document`, DWG
-  conversion failures return an honest error status rather than a silent empty result, and LLM
-  timeouts are recorded (see cost-on-failure above) rather than swallowed.
-- `GET /metrics` exposes Prometheus counters/histograms (stage latency, tokens, cost, delta counts)
-  unconditionally; Prometheus itself is only scraping it under the `obs` compose profile.
+Baseline numbers from `eval/baseline_scorecard.json` (test split):
 
-## Evaluation approach
+| Metric | Value |
+|---|---|
+| Delta precision / recall / F1 at tau 0.5 | 0.476 / 0.833 / 0.606 |
+| Gated `delta_f1_test` | 0.545 |
+| `pair_04_multisheet` F1 | 0.0 (the sheet-3 edit is missed) |
+| Citation validity | 1.0 |
+| Abstention precision / recall (offline) | 1.0 / 0.667 |
+| Retrieval hit rate at k = 3, 5, 10 | 0.111 (9 queries; 0.0 at k = 1) |
+| OCR WER / CER on `pair_03_scanned` | 0.385 / 0.366 (depends on the installed Tesseract) |
 
-`make eval` / `eval/run_eval.py` writes a segmented scorecard — by **pair**, by **format** (native /
-scanned / DWG), and by the **hard slice** — never a single averaged headline number:
+The offline chat numbers (faithfulness 1.0 and similar) come from the stub and say nothing about a
+real model.
 
-- **Delta**: Hungarian-matched precision/recall/F1 at multiple `tau` thresholds, plus a soft-F1
-  (partial credit for a close-but-not-exact match) and a type-confusion matrix.
-- **Chat**: faithfulness, answer relevancy, context precision/recall (model-graded, multi-sample
-  averaged) plus bespoke, **pure-code** citation *validity* (does the id resolve?) and citation
-  *support* (does the span actually entail the claim?), and abstention precision/recall over
-  answerable/unanswerable gold questions. **Abstention caveat**: the sufficiency gate has two
-  stages — a cheap deterministic lexical pre-filter and an LLM entailment check. On this tiny,
-  sparse P&ID text no *lexical* threshold separates all answerable from all unanswerable questions
-  (empirically: driving false-abstention to 0 leaves abstention **recall at 0.67** — one
-  unanswerable question whose stray terms overlap a chunk slips the floor). The entailment stage is
-  what closes that gap, but it needs a real model, so **`make eval`'s default `--offline` run
-  reports the weaker deterministic-only abstention** (recall 0.67); the tradeoff is deliberate —
-  refusing the flagship demo question would be far worse than occasionally over-answering, and the
-  entailment backstop exists for deployments with a key.
-- **Retrieval**: Hit-Rate/Recall/MRR at multiple k, plus a cost/latency budget table
-  (`budget.md`) extrapolated to a larger sheet count.
-- **OCR**: word- and character-error rate for the scanned path, scored against `ocr_truth.txt` (the
-  exact token sequence of the native page before it was rasterized). Reported in the scorecard's
-  `ocr` block, never gated — the number moves with the installed Tesseract build, so gating it would
-  fail CI on an environment upgrade rather than on a real regression (on this machine's Tesseract it
-  is ~WER 0.38 / CER 0.37 on `pair_03_scanned` — read the live `ocr` block for the current run's
-  figure rather than trusting this prose); see the failure taxonomy.
-- **The judge is cross-family-enforced**: `eval.judge.model` is asserted at runtime to be a
-  different model family than the answerer (`llm.model`) — a same-family judge can't credibly
-  validate its own outputs — and prompts are order-swapped to counter position bias.
-  **Not yet agreement-validated**: `eval/judge.py` implements `cohen_kappa()` and a judge/human
-  confusion matrix, and both are unit-tested, but *no human-annotated label set exists in this
-  repo*, so kappa has never actually been computed on real data. Until it is, the judge is
-  cross-family and order-swapped but its agreement with a human is unmeasured — treat the
-  model-graded numbers accordingly. Producing that annotation set is the first item under
-  [What's next](#whats-next).
+## Known limitations
 
-**CI gates ONLY the deterministic block** (delta P/R/F1 on the held-out test split, citation
-validity, latency, cost) against `eval/baseline_scorecard.json`, via `eval.regression_thresholds`.
-Model-graded metrics are never gating — they're reported as mean ± stdev over multiple judge samples
-specifically so judge/temperature-0 non-determinism can never fire a false regression.
+- **Low delta precision.** About half the reported changes on the test split are false positives,
+  mostly spurious `added` changes. Filtering low-`match_conf` adds and removes is the obvious next
+  step.
+- **Multi-sheet changes can be missed.** The sheet-3 edit in `pair_04_multisheet` produces no change.
+- **Note gate is not calibrated.** No calibration script exists; the gate is a fixed cosine cutoff
+  over a hashed embedding, not a learned model.
+- **Offline abstention recall is 0.67.** The lexical coverage floor cannot separate every
+  unanswerable question on sparse P&ID text; the LLM sufficiency check is meant to close that gap
+  but is not exercised in CI.
+- **Judge agreement is unmeasured.** `eval/judge.py` enforces a different model family from the
+  answerer, swaps answer order in pairwise prompts, and implements `cohen_kappa()`, but there is no
+  human-labelled set, so kappa has never been computed.
+- **No connectivity-graph delta.** Changes are found from text and coarse geometry, not from traced
+  piping and instrument connections.
+- **DWG support is DXF-level.** Real `.dwg` needs an external converter; the Docker image does not
+  install one.
+- **In-memory API state.** The API keeps ingested pairs and deltas in a process-local dict, so they
+  are lost on restart.
 
-**`make eval` and CI both run with `--offline`** by default: the real ingest -> delta -> BM25
-retrieval pipeline runs for real (all pure code), but chat generation and the judge are backed by a
-deterministic stub (`eval/run_eval.py`'s `_offline_llm_complete` / `_OfflineJudge`) instead of a live
-model — see the module docstring. This is a deliberate trade-off: it makes the CI-gated
-`deterministic` block (which is what's actually enforced) reproducible with zero external services
-and no API key, at the cost of the `chat`/model-graded block being uninformative in that mode (every
-offline-stubbed claim trivially "entails" its source). Drop `--offline` for a real judge-graded run
-against a live model — that path exists and is exercised manually, just not by CI, matching the same
-convention used elsewhere in this codebase for live-network paths (see `tests/test_config.py`'s
-`llm` marker).
+## Project layout
 
-## Honest failure taxonomy / known limitations
+```
+src/delta_chat/
+  api/            FastAPI app and the static web UI (web/)
+  canonical/      Document, Item, Change and Delta types shared by every stage
+  chat/           retrieval index, sufficiency gate, grounding, answer verification, LLM client
+  delta/          alignment, classification, note diff, delta engine, report rendering
+  ingest/         format adapters: native PDF, scanned PDF + OCR, DXF/DWG; region and tag extraction
+  markup/         annotated PDF overlay of a delta
+  observability/  tracing, Prometheus metrics, structured logging, token cost
+  pids/           resolves pid strings (paths, file:// URIs) to bytes
+  cli.py          delta-chat CLI entry point
+  config.py       YAML config loader with env overrides
+eval/             eval runner, metrics, judge, gold datasets, committed baseline scorecard
+scripts/          synth_samples.py: builds revision pairs and gold data
+config/           default.yaml (all thresholds and model ids), prometheus.yml
+data/samples/     per-pair metadata, provenance notes
+tests/            pytest suite, mirrors the src/ and eval/ layout
+```
 
-| Failure mode | Example | Detected by |
-|---|---|---|
-| Hallucinated citation id | model cites a `delta:CHG-0099` that doesn't exist | citation *validity* check (id-resolves) |
-| Wrong-span citation | id resolves but the span doesn't entail the claim | citation *support* check (entailment) |
-| Missed change | a real edit produces no `Change` | delta recall / false negative |
-| Mislabeled change type | a MOVED change classed as MODIFIED | type-confusion matrix |
-| Over-answered unanswerable | answers a question the sources can't support | abstention precision/recall |
-| OCR error on small text | tiny/dense scanned text misread | **measured** in the scorecard `ocr` block (~WER 0.38 / CER 0.37 on this machine's Tesseract; environment-dependent, so read the live figure) |
-| Abstention recall < 1.0 offline | an unanswerable question whose stray terms overlap a chunk ("flow rate on sheet 2") slips the deterministic floor | abstention P/R — the lexical gate can't separate all cases on this sparse text; the LLM entailment stage (key required) closes it, so offline recall is 0.67 |
-| **Multi-sheet change missed** | `pair_04_multisheet`'s sheet-3 edit produces no matching `Change` | delta recall — it is a real FN, visible as `pair:pair_04_multisheet F1=0.000` in the segmented scorecard |
-| **Judge agreement unmeasured** | `cohen_kappa()` is implemented and unit-tested but has never been run | no human-annotated label set exists in this repo — the judge is cross-family and order-swapped, but its agreement with a human is **unknown**, so model-graded numbers carry that caveat |
-| Spurious change (low precision) | delta precision is 0.48 at tau=0.5 — roughly half the reported changes are FPs | delta precision, per-segment; the dual-confidence fields (`match_conf`/`class_conf`) let a caller filter, but nothing filters by default |
-| **Note-gate not calibrated** | no train-split calibration script exists in this repo for `delta.notes.semantic_low/high` | collapsed to a fixed cosine cutoff (`0.90`/`0.90`) so the ambiguous LLM-gated band is empty by construction — this is a **deliberate cut**, not a bug: it trades away the nuance a real calibration would recover (distinguishing "cosmetic reword" from "meaningful reword" at the margin) for a demo path that never crashes and never needs a key for delta computation |
-
-## Deliberate cuts / boundaries
-
-- **No full P&ID connectivity-graph delta.** The delta engine reasons over coarse symbol geometry,
-  not a traced piping/instrumentation connectivity graph — that's a research-scale problem with low
-  marginal rubric value relative to its cost.
-- **OCR error on small text is real** and is measured/reported, not hidden or special-cased away.
-- **DWG depth is limited to what DXF exposes.** Real `.dwg` end-to-end requires the ODA File
-  Converter at build/runtime; without it the adapter honestly reports "conversion required" rather
-  than claiming full DWG support. Grading credit should reflect DXF-level support, not "all formats
-  end-to-end."
-- **Retrieval stays simple by choice.** BM25 (optional hybrid) at 2-document scale, not a vector
-  database — see [Design decisions](#design-decisions--trade-offs).
-- **`make eval`'s CI-gated run uses stubbed chat generation** (`--offline`), not a live model — see
-  [Evaluation approach](#evaluation-approach). The `chat`/model-graded scorecard block is real when
-  run without `--offline`, but that path isn't exercised in CI.
-
-## What's next
-
-- **Annotate a human judge-agreement set and report Cohen's κ.** The harness exists
-  (`eval/judge.py`); what's missing is the labels. Until then the model-graded numbers are
-  reported but not validated — see the failure taxonomy.
-- **Raise delta precision.** Recall is 0.83 on the held-out split but precision is 0.48; the
-  cheapest win is filtering or down-weighting `added`/`removed` changes whose `match_conf` is 0
-  (the "possible missed-modify" cases already flagged in the report).
-- Symbol detection + a real connectivity-graph delta.
-- Learned alignment: embeddings fine-tuned on drawing-specific tokens (tag formats, line numbers)
-  rather than a generic text encoder.
-- An active-learning loop that feeds eval-flagged failures back into the gold set.
-- Multi-sheet / large-drawing-set scaling: sheet-parallel ingest + incremental delta recomputation.
-- A human-in-the-loop review UI for sub-threshold / low-confidence changes.
-- An actual train-split calibration procedure for `delta.notes.semantic_low/high`, replacing the
-  fixed cutoff described above.
-
-## Determinism note
-
-The structural delta (alignment + classification) is pure code and byte-reproducible run to run —
-`tests/eval/test_run_eval.py` asserts the scorecard's gated `deterministic` block is byte-identical
-across repeated runs given fixed inputs. The only non-deterministic elements anywhere in the
-pipeline are the two LLM judgment calls (semantic note-gate, chat answer), bounded with
-`temperature=0` and a pinned model id. Even temperature-0 hosted models aren't perfectly
-deterministic in practice (backend/routing drift outside anyone's control) — which is exactly why CI
-gates only the pure-code `deterministic` block, never a model-graded number.
+More detail on the walkthrough commands and expected output: [DEMO.md](DEMO.md).
