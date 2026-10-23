@@ -1,15 +1,16 @@
-"""Ordered-list note diff (LCS/Myers) + calibrated embedding-cosine semantic gate.
+"""Ordered-list note diff (LCS/Myers) + fixed-cutoff embedding-cosine semantic gate.
 
 Note-region items arrive from ingestion as per-word tokens (see ``canonical.model.Item``), so this
 module first re-assembles them into logical note lines by row-clustering, then diffs the ordered line
 sequence with ``difflib.SequenceMatcher`` (LCS/Myers-family algorithm) at line granularity.
 
 This is the **only** place an LLM touches the delta pipeline, and even then it never authors old/new
-values — those always come from the deterministic parse. A matched-but-reworded note is decided by a
-**calibrated** embedding-cosine gate: clearly below ``semantic_low`` is meaningful, clearly at/above
+values — those always come from the deterministic parse. A matched-but-reworded note is decided by an
+embedding-cosine gate: clearly below ``semantic_low`` is meaningful, clearly at/above
 ``semantic_high`` is cosmetic (both no LLM call), and only the ambiguous band in between escalates to
-exactly one LLM call. The two cutoffs are model-specific and set by calibration (§10) on held-out note
-edits — never hardcoded here.
+exactly one LLM call. The cutoffs come from config, never hardcoded here. No calibration step exists
+yet; ``config/default.yaml`` sets both to 0.90, so the LLM band is empty, and the default embedder is
+a hashed character-trigram vector.
 """
 
 from __future__ import annotations

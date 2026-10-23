@@ -24,10 +24,8 @@ ENV PYTHONPATH=/app/src
 # into the image so the app is immediately usable without a first-run synthesis step.
 RUN uv run python scripts/synth_samples.py
 
-# ODA File Converter (for real .dwg -> .dxf) is installed here WHEN a licensed/redistributable
-# installer is available at build time. If absent, the DWG adapter falls back to its honest
-# "conversion required" stub (section-06) and .dxf inputs still parse. Do NOT fake DWG support.
-# (Placeholder — wire the actual installer step only if the artifact is present at build time.)
+# The image ships without a DWG converter (ODA File Converter is not bundled). The DWG
+# adapter returns its "conversion required" stub for .dwg input; .dxf inputs parse normally.
 
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "delta_chat.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

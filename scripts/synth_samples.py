@@ -380,7 +380,7 @@ def _provenance() -> str:
         "| pair_03_scanned | test | pair_01 rev B rasterized + skewed + noised + JPEG; native rev B = OCR truth |\n"
         "| pair_04_multisheet | test | 3 sheets; tag edit on sheet 3 |\n"
         "| pair_05_dxf | test | DXF: add LINE; change MTEXT tag; move block INSERT (gold bbox from ezdxf extents) |\n\n"
-        "Anti-leakage: TRAIN is used ONLY for threshold/note-gate calibration (see `select_calibration_pairs`);\n"
+        "Anti-leakage: TRAIN is reserved for future threshold/note-gate calibration (see `select_calibration_pairs`);\n"
         "TEST pairs headline the scorecard. Split + seed are read from `config/default.yaml`. No PII, no secrets.\n\n"
         "Known limitation: the hard slice uses a duplicate-tag positional move (text), not a true vector-path\n"
         "move; a genuine geometry-move synthesizer is future work. Q&A gold is a representative ~12-item set\n"

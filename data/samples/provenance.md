@@ -13,7 +13,7 @@ every authored token is round-trip validated as extractable by the native adapte
 | pair_04_multisheet | test | 3 sheets; tag edit on sheet 3 |
 | pair_05_dxf | test | DXF: add LINE; change MTEXT tag; move block INSERT (gold bbox from ezdxf extents) |
 
-Anti-leakage: TRAIN is used ONLY for threshold/note-gate calibration (see `select_calibration_pairs`);
+Anti-leakage: TRAIN is reserved for future threshold/note-gate calibration (see `select_calibration_pairs`);
 TEST pairs headline the scorecard. Split + seed are read from `config/default.yaml`. No PII, no secrets.
 
 Known limitation: the hard slice uses a duplicate-tag positional move (text), not a true vector-path

@@ -5,9 +5,8 @@
 - **Order-swap**: pairwise comparisons run both (A,B) and (B,A) and average, to cancel position
   bias (some judges systematically favor whichever candidate is presented first).
 - **Rubric-anchored**, 1..scale pointwise scoring; pairwise for version comparisons.
-- **Validated**: `cohen_kappa` against a stored human-label fixture, reported alongside a
-  confusion matrix. Single-annotator, small-n — a directional signal, not an unimpeachable number
-  (see section-11's README for the honest caveat).
+- **Agreement check**: `cohen_kappa` with a confusion matrix is implemented, but has not yet been
+  run against human labels (no human-label set exists yet).
 """
 
 from __future__ import annotations

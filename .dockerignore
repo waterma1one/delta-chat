@@ -7,7 +7,6 @@ htmlcov/
 .git/
 traces/
 eval/output/
-implementation/
 
 # never bake real keys into an image layer — compose mounts .env at runtime instead
 .env
