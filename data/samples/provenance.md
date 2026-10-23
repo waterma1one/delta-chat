@@ -1,6 +1,7 @@
 # Sample provenance
 
-The two provided P&IDs (`source/`) are different drawings, not revisions, so revision pairs are
+The two source P&IDs used in development are different drawings, not revisions, and are not
+redistributed here, so revision pairs are
 synthesized with logged edits. Each edit is a gold change (`eval/datasets/delta_gold.jsonl`);
 every authored token is round-trip validated as extractable by the native adapter.
 

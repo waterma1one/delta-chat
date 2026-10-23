@@ -370,7 +370,8 @@ def main(samples_dir: Path | None = None, datasets_dir: Path | None = None) -> i
 def _provenance() -> str:
     return (
         "# Sample provenance\n\n"
-        "The two provided P&IDs (`source/`) are different drawings, not revisions, so revision pairs are\n"
+        "The two source P&IDs used in development are different drawings, not revisions, and are not\n"
+        "redistributed here, so revision pairs are\n"
         "synthesized with logged edits. Each edit is a gold change (`eval/datasets/delta_gold.jsonl`);\n"
         "every authored token is round-trip validated as extractable by the native adapter.\n\n"
         "| pair | split | edits |\n|---|---|---|\n"

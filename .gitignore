@@ -9,13 +9,11 @@ data/output/
 markup.pdf
 eval/output/
 
-# Generated sample pairs (regenerable via scripts/synth_samples.py). Keep provided source PDFs +
-# provenance tracked.
+# Generated sample pairs (regenerable via scripts/synth_samples.py). Source drawings placed in
+# data/samples/source/ stay local; only provenance is tracked.
 data/samples/**/*.pdf
 data/samples/**/*.dxf
 data/samples/**/*.png
-!data/samples/source/*.pdf
-!data/samples/source/*.dxf
 !data/samples/provenance.md
 
 # Python / uv
