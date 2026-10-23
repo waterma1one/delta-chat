@@ -1,4 +1,4 @@
-"""Native-PDF parsing against the provided Export Gas Compressor sheet."""
+"""Native-PDF parsing against the Export Gas Compressor source sheet (skips when absent)."""
 
 from __future__ import annotations
 

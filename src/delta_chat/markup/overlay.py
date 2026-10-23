@@ -1,5 +1,5 @@
-"""Delta markup overlay — renders a computed ``Delta`` as annotations on the source PDF (bonus
-rubric +4). A pure consumer of the canonical ``Delta``/``Change``/``BBox`` types: this module
+"""Delta markup overlay — renders a computed ``Delta`` as annotations on the source PDF.
+A pure consumer of the canonical ``Delta``/``Change``/``BBox`` types: this module
 never touches ingestion or the delta engine, and a failure here never affects the core pipeline.
 
 Coordinate rule: ``BBox`` is normalized [0,1], top-left origin — the same origin convention
@@ -106,7 +106,7 @@ def render_markup(delta: Delta, source_pdf: bytes, cfg=None) -> bytes:
     change-set "clouds", and return an annotated PDF (bytes). Exactly one annotation is created
     per renderable Change, so `annotation_count == len(delta.changes)` for changes whose page
     exists in `source_pdf` — a change with an out-of-range page index is skipped (logged, not
-    raised) so this bonus feature never breaks the core pipeline. Only pages with >=1 change are
+    raised) so this optional feature never breaks the core pipeline. Only pages with >=1 change are
     touched; each touched page also gets a small color legend for the types present on it.
 
     Note on `removed` changes: `Change.bbox` for a `removed` change is rev-A-relative per the
@@ -115,7 +115,7 @@ def render_markup(delta: Delta, source_pdf: bytes, cfg=None) -> bytes:
     pixel-accurate removed markers should pass rev-A bytes instead.
 
     Note on the legend: it is unconditionally placed in each touched page's top-left corner with
-    no collision detection against real drawing content — acceptable for a bonus feature, but a
+    no collision detection against real drawing content — acceptable for an optional feature, but a
     dense engineering drawing may have content there already.
     """
     cfg = cfg or load_config()

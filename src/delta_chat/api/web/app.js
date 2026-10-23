@@ -109,7 +109,7 @@ function renderAnswer(answer) {
 function renderCitationChip(citation) {
   const chip = document.createElement("button");
   chip.type = "button";
-  // delta-entry citations vs doc-span citations are visually distinguished (both required by the rubric).
+  // delta-entry citations vs doc-span citations are visually distinguished.
   chip.className = "citation-chip source-" + (citation.source_type || "unknown");
   chip.textContent = citation.citation_id;
   chip.title = `page ${citation.page} sheet ${citation.sheet || "-"}`;

@@ -27,7 +27,7 @@ install:            ## sync deps (uv, Python 3.11+) + seed .env + synthesize sam
 samples:             ## regenerate data/samples/ + eval gold (fast, deterministic; gitignored, not committed)
 	$(RUN) python scripts/synth_samples.py
 
-demo: samples        ## ACCEPTANCE COMMAND: ingest -> delta report -> grounded chat, one invocation
+demo: samples        ## ingest -> delta report -> grounded chat, one invocation
 	$(RUN) delta-chat demo --pid-a "$(PID_A)" --pid-b "$(PID_B)"
 
 run: samples         ## ingest both -> delta report (JSON+MD) + markup (best-effort), writes a trace file
@@ -39,7 +39,7 @@ chat: samples        ## interactive grounded chat in the terminal over an ingest
 eval: samples        ## scorecard.json + budget.md; diffs eval/baseline_scorecard.json; non-zero on regression
 	$(RUN) python -m eval.run_eval --offline --baseline eval/baseline_scorecard.json
 
-markup: samples      ## annotated PDF overlay (bonus)
+markup: samples      ## annotated PDF overlay
 	$(RUN) delta-chat markup --pid-a "$(PID_A)" --pid-b "$(PID_B)" --out markup.pdf
 
 test: samples        ## deterministic + mocked-LLM suite (excludes @pytest.mark.llm; none defined yet)

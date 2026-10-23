@@ -34,7 +34,7 @@ class QAGold:
     reference_answer: str
     expected_citation_ids: list[str]
     answerable: bool  # False -> should abstain (INSUFFICIENT_EVIDENCE)
-    citation_class: str  # "delta" | "doc_span" — both classes required by rubric
+    citation_class: str  # "delta" | "doc_span"
     pair_id: str
 
 

@@ -1,6 +1,6 @@
 """Synthesize revision pairs with logged, known ground truth.
 
-The two provided P&IDs are different drawings (not revisions), so we author controlled Rev A -> Rev B
+The two source P&IDs are different drawings (not revisions), so we author controlled Rev A -> Rev B
 pairs. Every authored edit is recorded as a gold change, so the edit log *is* the delta ground truth
 (reused as eval gold and pytest fixtures). Deterministic: config seed, sorted JSONL, sorted-key JSON.
 

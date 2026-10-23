@@ -28,7 +28,7 @@ delta:
     row_tol: 0.01                 # normalized page-height fraction: words within this y0 distance cluster into one note line
     # section-11: no §05/§10 train-split calibration script exists in this repo, and cli.py never
     # passes an `llm` callable into compute_delta, so leaving these null makes the zero-infra
-    # acceptance command (`make demo`) crash on any real note reword. Collapsed to a single cutoff
+    # demo command (`make demo`) crash on any real note reword. Collapsed to a single cutoff
     # (low == high) so the ambiguous LLM-gated band is empty by construction: cos >= 0.90 is
     # cosmetic (skipped), cos < 0.90 is reported as a generic reworded note — deterministic, no
     # LLM call. Documented as a deliberate cut in README (real calibration would recover nuance

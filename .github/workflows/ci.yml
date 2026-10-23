@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0            # FULL history — required, submission is full history
+          fetch-depth: 0            # full history, so gitleaks scans every commit
       # Invoke the gitleaks CLI directly rather than gitleaks-action@v2: the action derives its
       # scan range from the push event as `<firstCommit>^..<head>`, which is an invalid revision
       # whenever the pushed range includes the repo's initial commit (the root has no parent) —

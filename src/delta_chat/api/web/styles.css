@@ -35,7 +35,7 @@ main { display: flex; gap: 1rem; height: calc(100vh - 6rem); }
   background: #fff;
   cursor: pointer;
 }
-/* delta-entry vs doc-span citations are visually distinguished — both required by the rubric */
+/* delta-entry vs doc-span citations are visually distinguished */
 .citation-chip.source-delta { border-color: #7a3fe0; color: #7a3fe0; }
 .citation-chip.source-doc_a { border-color: #1a7f37; color: #1a7f37; }
 .citation-chip.source-doc_b { border-color: #0969da; color: #0969da; }

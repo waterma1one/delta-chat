@@ -1,6 +1,6 @@
 # Minimal scrape config for the opt-in `obs` docker-compose profile. Not on the critical path —
 # the app exposes GET /metrics (src/delta_chat/observability/metrics.py) unconditionally, so this
-# is only consumed when a grader runs `make up-obs` / `docker compose --profile obs up`.
+# is only consumed when you run `make up-obs` / `docker compose --profile obs up`.
 global:
   scrape_interval: 15s
 

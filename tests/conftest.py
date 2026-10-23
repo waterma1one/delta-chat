@@ -17,7 +17,7 @@ def repo_root() -> Path:
 
 @pytest.fixture(scope="session")
 def source_pdfs() -> list[Path]:
-    """The two provided native P&ID PDFs (fixtures for native-PDF ingestion tests)."""
+    """The two source native P&ID PDFs, if present locally (fixtures for native-PDF ingestion tests)."""
     return sorted(SOURCE_PDF_DIR.glob("*.pdf"))
 
 

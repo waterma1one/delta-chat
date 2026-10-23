@@ -1,6 +1,6 @@
 """CLI entrypoints: ``demo | run | chat | markup``.
 
-``demo`` is the single acceptance-criterion command: ingest both PIDs, compute + write the delta
+``demo`` is the one-command path: ingest both PIDs, compute + write the delta
 report, then run grounded chat (one query non-interactively, or an interactive terminal loop) — all
 in one invocation. Every subcommand opens a `pipeline.request` trace and writes a JSON trace file
 unconditionally (works with zero external obs services).
@@ -78,7 +78,7 @@ def _interactive_chat_loop(index, cfg, *, in_stream=None) -> None:
 
 
 def demo(pid_a: str, pid_b: str, query: str | None = None, cfg=None, *, out_dir=None, in_stream=None) -> int:
-    """SINGLE acceptance command: ingest both PIDs -> compute delta -> render report (JSON+MD to
+    """One-command demo: ingest both PIDs -> compute delta -> render report (JSON+MD to
     disk) -> then run grounded chat. Non-interactive if `query` is given, else an interactive loop."""
     cfg = cfg or load_config()
     tr = tracing.start_request({"pid_a": pid_a, "pid_b": pid_b, "command": "demo"}, cfg=cfg)
@@ -113,9 +113,9 @@ def run(pid_a: str, pid_b: str, cfg=None, *, out_dir=None) -> int:
         try:
             from .markup import overlay
         except ImportError:
-            print("markup overlay not available (section-09 not yet built) — skipping", file=sys.stderr)
+            print("markup overlay not available — skipping", file=sys.stderr)
         else:
-            # Markup is a best-effort bonus: a bug/malformed-PDF failure here must not turn an
+            # Markup is best-effort: a bug/malformed-PDF failure here must not turn an
             # otherwise-successful `run` (delta report already written above) into exit code 1.
             try:
                 data_b, _meta = resolve_pid(pid_b)
@@ -160,7 +160,7 @@ def markup(pid_a: str, pid_b: str, out: str, cfg=None) -> int:
         try:
             from .markup import overlay
         except ImportError:
-            print("markup overlay not available (section-09 not yet built)", file=sys.stderr)
+            print("markup overlay not available", file=sys.stderr)
             return 1
         data_b, _meta = resolve_pid(pid_b)
         pdf_bytes = overlay.render_markup(delta, data_b)
