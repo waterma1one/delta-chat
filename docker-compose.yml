@@ -14,14 +14,14 @@ services:
     # No dependency on the obs services below — app must run standalone.
 
   phoenix:
-    image: arizephoenix/phoenix:latest
+    image: arizephoenix/phoenix:version-20.26.0
     profiles: ["obs"]
     ports:
       - "6006:6006"     # UI
       - "4317:4317"     # OTLP gRPC receiver — matches obs.otlp_endpoint's default port
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.15.1
     profiles: ["obs"]
     ports:
       - "9090:9090"
@@ -29,7 +29,7 @@ services:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.2.4
     profiles: ["obs"]
     ports:
       - "3000:3000"
