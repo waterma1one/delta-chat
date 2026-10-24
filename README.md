@@ -8,7 +8,7 @@ revisions.
 
 Video walkthrough (Loom, about 5 minutes): https://www.loom.com/share/b3a3036a75dd49f9a3409b997741cee5
 
-<!-- SCREENSHOT: the /ui page with a loaded pair, showing the "Delta report" panel and a "Grounded chat" answer with delta and doc-span citations. Save as docs/screenshot.png -->
+![The /ui page with the sample pair_01_native pair loaded, showing the Delta report panel](docs/screenshot.png)
 
 ## What it does
 
