@@ -116,7 +116,8 @@ def _delta_id(pid_a: str, pid_b: str) -> str:
 
 
 def _report_html(markdown_text: str) -> str:
-    body = _html.escape(markdown_text)
+    # report.py already escaped descriptions; decode one level so they are not double-escaped
+    body = _html.escape(_html.unescape(markdown_text))
     return f"<!doctype html><html><head><meta charset='utf-8'><title>Delta Report</title></head><body><pre>{body}</pre></body></html>"
 
 

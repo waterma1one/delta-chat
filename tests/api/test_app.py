@@ -284,3 +284,13 @@ def test_delta_id_does_not_collide_on_unescaped_separator(client):
     id_1 = _delta_id("a|b", "c")
     id_2 = _delta_id("a", "b|c")
     assert id_1 != id_2
+
+
+def test_report_html_does_not_double_escape():
+    """report.py already HTML-escapes descriptions for Markdown; the <pre> view must not escape again."""
+    from delta_chat.api.app import _report_html
+
+    out = _report_html("- Tag 26-FV-9038 -&gt; 26-FV-9040 <b>")
+    assert "-&gt; 26-FV-9040" in out
+    assert "&amp;gt;" not in out
+    assert "<b>" not in out  # raw markup from the markdown still never reaches the page
